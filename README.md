@@ -10,6 +10,31 @@ Medivault combines three sources into one view of a patient and asks an AI model
 
 No demo data is built in. Everything shown comes from the uploaded file and the live sandbox APIs.
 
+## Step 4: the follow-up agent
+
+After the recommendations, a care agent checks whether a specialist visit is needed. It acts **only when the newly uploaded results, read with the patient's history, cross a referral rule**. Otherwise it reports "no follow-up needed" and does nothing else.
+
+| Specialty | Trigger (from the uploaded document) | Book within |
+|---|---|---|
+| Endocrinology | A1c 10%+ | 3-14 days |
+| | A1c 9%+ | 7-21 days |
+| | A1c 8%+ and up 0.3+ from history, or 7.5%+ rising with a lapsed diabetes medicine | 14-28 days |
+| Nephrology | eGFR under 30 / eGFR under 45 and down 10+ / urine albumin 300+ | 7-45 days |
+| Cardiology (lipids) | LDL 190+ | 21-45 days |
+
+These thresholds are demo rules in `src/agent/triage.js`, not clinical guidance.
+
+When triggered, the agent streams each step to the page:
+1. Alerts the patient with the specialty, the time window and the evidence (upload, EHR, pharmacy).
+2. Checks the patient's calendar (a sample calendar in the demo) for that window.
+3. Finds open specialist slots (simulated clinics, in FHIR `Slot` shape) that avoid busy times with a 45-minute travel buffer.
+4. **Stops for approval.** Nothing is booked or sent until the patient picks a time.
+5. Calls the clinic (simulated, with a live transcript; the agent identifies itself as an AI acting for the patient).
+6. Creates the appointment (FHIR `Appointment`) and an `.ics` calendar invite.
+7. Emails the patient (why, when, what to bring, questions) and the specialist's office (pre-visit summary with cited evidence and questions). Emails appear in the in-app outbox.
+
+Endpoints: `GET /api/agent/triage`, `GET /api/agent/run` (Server-Sent Events), `GET /api/agent/book?slot=…` (SSE), `GET /api/agent/appointment.ics`. Set `PATIENT_EMAIL` to show a real address on the patient email.
+
 ## How it works
 
 ```

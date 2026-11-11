@@ -11,6 +11,9 @@ import { fetchCms } from "./sources/cms.js";
 import { buildRecord } from "./analysis.js";
 import { extractDocument, generateRecommendations, LlmError } from "./llm.js";
 import { demoCms, demoEhr, sampleReportText } from "./demo-data.js";
+import { book, patientFrom, plan } from "./agent/agent.js";
+import { triage } from "./agent/triage.js";
+import { toIcs } from "./agent/scheduling.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FETCHERS = { epic: fetchEpic, cms: fetchCms };
@@ -183,6 +186,65 @@ export function createApp({ fetchImpl = fetch } = {}) {
     req.session.recommendations = { generatedAt: new Date().toISOString(), record, ...result };
     res.json(req.session.recommendations);
   }));
+
+  /* ---------- follow-up agent ---------- */
+  // The agent's state is tied to the record it saw; any change to the inputs resets it.
+  const recordKey = (req) => JSON.stringify([req.session.documentName, req.session.document?.documentDate,
+    req.session.sources?.epic?.fetchedAt, req.session.sources?.cms?.fetchedAt]);
+  const agentState = (req) => {
+    const a = req.session.agent;
+    if (a && a.key !== recordKey(req)) { req.session.agent = null; return null; }
+    return a || null;
+  };
+  const pace = req0 => (ms) => new Promise((r) => setTimeout(r, req0.query.fast ? 0 : ms));
+
+  async function stream(req, res, gen) {
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+    res.flushHeaders?.();
+    let closed = false;
+    req.on("close", () => { closed = true; });
+    try {
+      for await (const ev of gen) { if (!closed) res.write(`data: ${JSON.stringify(ev)}\n\n`); }
+    } catch (err) {
+      if (!closed) res.write(`data: ${JSON.stringify({ type: "error", error: err.message })}\n\n`);
+    }
+    req.session.save(() => res.end());
+  }
+
+  app.get("/api/agent/triage", (req, res) => res.json(triage(currentRecord(req), req.session.document)));
+  app.get("/api/agent", (req, res) => res.json(agentState(req)));
+
+  app.get("/api/agent/run", (req, res) => {
+    const record = currentRecord(req);
+    const patient = patientFrom(req.session.document, record, req.session.sources?.epic?.data?.patient);
+    const gen = (async function* () {
+      const it = plan({ record, document: req.session.document, patient, wait: pace(req) });
+      let r;
+      while (!(r = await it.next()).done) yield r.value;
+      req.session.agent = { ...r.value, key: recordKey(req) };
+    })();
+    return stream(req, res, gen);
+  });
+
+  app.get("/api/agent/book", (req, res) => {
+    const state = agentState(req);
+    const gen = (async function* () {
+      if (!state) throw new Error("Run the follow-up agent first.");
+      const it = book({ state, slotId: String(req.query.slot || ""), record: currentRecord(req), patientEmail: process.env.PATIENT_EMAIL, wait: pace(req) });
+      let r;
+      while (!(r = await it.next()).done) yield r.value;
+      req.session.agent = { ...r.value, key: recordKey(req) };
+    })();
+    return stream(req, res, gen);
+  });
+
+  app.get("/api/agent/appointment.ics", (req, res) => {
+    const a = agentState(req);
+    if (!a?.appointment) return res.status(404).json({ error: "No appointment booked yet." });
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="specialist-appointment.ics"');
+    res.send(toIcs(a.appointment, a.clinic, a.triage.primary, a.triage.primary.questions));
+  });
 
   app.post("/api/reset", (req, res) => req.session.destroy(() => res.json({ ok: true })));
 
