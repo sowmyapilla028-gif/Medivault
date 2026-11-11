@@ -6,11 +6,11 @@
 
 ## Team
 
-| Name | Role |
-|---|---|
-| John | Business case |
-| Richard | Solution architecture |
-| Sowmya | Development |
+| | Name | Role |
+|---|---|---|
+| <a href="https://github.com/johntimothymaloney-cmd"><img src="https://github.com/johntimothymaloney-cmd.png" width="48" height="48" alt="John"></a> | [John](https://github.com/johntimothymaloney-cmd) | Business case |
+| <a href="https://github.com/thetradingdoc"><img src="https://github.com/thetradingdoc.png" width="48" height="48" alt="Richard"></a> | [Richard](https://github.com/thetradingdoc) | Solution architecture |
+| <a href="https://github.com/sowmyapilla028-gif"><img src="https://github.com/sowmyapilla028-gif.png" width="48" height="48" alt="Sowmya"></a> | [Sowmya](https://github.com/sowmyapilla028-gif) | Development |
 
 ## The problem
 
