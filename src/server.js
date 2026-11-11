@@ -10,6 +10,7 @@ import { fetchEpic } from "./sources/epic.js";
 import { fetchCms } from "./sources/cms.js";
 import { buildRecord } from "./analysis.js";
 import { extractDocument, generateRecommendations, LlmError } from "./llm.js";
+import { demoCms, demoEhr, sampleReportText } from "./demo-data.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FETCHERS = { epic: fetchEpic, cms: fetchCms };
@@ -44,7 +45,8 @@ export function createApp({ fetchImpl = fetch } = {}) {
     const src = (id) => ({
       label: config.sources[id].label,
       configured: isConfigured(id),
-      connected: Boolean(s[id]?.token),
+      connected: Boolean(s[id]?.token || s[id]?.demo),
+      demo: Boolean(s[id]?.demo),
       fetchedAt: s[id]?.fetchedAt || null,
       error: s[id]?.error || null,
     });
@@ -66,6 +68,22 @@ export function createApp({ fetchImpl = fetch } = {}) {
     req.session.recommendations = null;
     res.json({ name: req.file.originalname, ...doc });
   }));
+  app.post("/api/document/sample", wrap(async (req, res) => {
+    const name = "sample-lab-report-demo.txt";
+    const doc = await extractDocument({ buffer: Buffer.from(sampleReportText()), mimetype: "text/plain", filename: name });
+    req.session.document = doc; req.session.documentName = name; req.session.recommendations = null;
+    res.json({ name, ...doc });
+  }));
+
+  // Opt-in demo records for a source (no sign-in). Replaced by a real connection when the user connects.
+  app.post("/api/demo/:source", (req, res) => {
+    const src = sourceParam(req, res); if (!src) return;
+    const data = src.id === "epic" ? demoEhr() : demoCms();
+    req.session.sources = { ...(req.session.sources || {}), [src.id]: { demo: true, data, fetchedAt: new Date().toISOString() } };
+    req.session.recommendations = null;
+    res.json({ ok: true });
+  });
+
   app.delete("/api/document", (req, res) => {
     req.session.document = null; req.session.documentName = null; req.session.recommendations = null;
     res.json({ ok: true });
@@ -139,6 +157,7 @@ export function createApp({ fetchImpl = fetch } = {}) {
   app.get("/api/sources/:source", wrap(async (req, res) => {
     const src = sourceParam(req, res); if (!src) return;
     const entry = req.session.sources?.[src.id];
+    if (entry?.demo) return res.json({ fetchedAt: entry.fetchedAt, ...entry.data });
     if (!entry?.token) return res.status(401).json({ error: `${src.label} isn't connected.` });
     const data = req.query.refresh || !entry.data ? await loadSource(req, src) : entry.data;
     res.json({ fetchedAt: entry.fetchedAt, ...data });
@@ -182,13 +201,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const missing = [];
   if (!isConfigured("epic")) missing.push("EHR_CLIENT_ID");
   if (!isConfigured("cms")) missing.push("CMS_CLIENT_ID / CMS_CLIENT_SECRET");
-  if (!llmConfigured()) missing.push(config.llm.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "LLM_API_KEY and LLM_MODEL");
+  if (!llmConfigured()) console.log("No AI model configured: using the built-in parser and rules (demo mode).");
   createApp().listen(config.port, () => {
     console.log(`Medivault running at ${config.appUrl}`);
     console.log(`EHR: ${config.sources.epic.label} at ${config.sources.epic.fhirBase}`);
-    console.log(`LLM: ${llmLabel()}${config.llm.provider === "openai" ? ` via ${config.llm.baseUrl}` : ""}`);
+    console.log(`LLM: ${llmConfigured() ? `${llmLabel()}${config.llm.provider === "openai" ? ` via ${config.llm.baseUrl}` : ""}` : "none (built-in rules)"}`);
     console.log(`EHR redirect URI: ${config.sources.epic.redirectUri}`);
     console.log(`CMS redirect URI:  ${config.sources.cms.redirectUri}`);
-    if (missing.length) console.warn(`Not configured yet: ${missing.join(", ")} (see .env.example)`);
+    if (missing.length) console.warn(`Not configured (use the "Use demo data" buttons instead): ${missing.join(", ")}`);
+    console.log(`Open ${config.appUrl} in your browser.`);
   });
 }

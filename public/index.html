@@ -287,7 +287,9 @@ details.dev summary { cursor: pointer; font-weight: 600; font-size: .9rem; color
             <div class="row">
               <label class="btn" for="fileIn">Choose file</label>
               <input id="fileIn" type="file" accept=".pdf,.txt,.json,image/jpeg,image/png,image/webp" hidden>
+              <button class="btn quiet" id="sampleDoc" type="button">Try a sample lab report</button>
             </div>
+            <button class="linkish" id="fullDemo" type="button">Or run the whole demo with sample data</button>
           </div>
           <div class="reading" id="dropBusy" hidden><span class="spinner"></span><span id="dropBusyText">Reading your document…</span></div>
           <p class="upload-error" id="dropErr" hidden></p>
@@ -372,8 +374,9 @@ const TICK = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--surface)" strok
 const TICK_OK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
 const ARROW = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
 const SRC = { document: "Your upload", epic: "EHR", cms: "CMS pharmacy" };
-const ehrLabel = () => state.status?.sources.epic.label || "EHR";
+const ehrLabel = () => (state.status?.sources.epic.demo ? "Demo EHR" : state.status?.sources.epic.label || "EHR");
 const llmName = () => state.status?.llmLabel || "AI";
+const hasLlm = () => !!state.status?.llmConfigured;
 
 async function api(path, opts = {}) {
   const res = await fetch(path, { credentials: "same-origin", ...opts });
@@ -425,7 +428,7 @@ function dropBusy(on, msg) { $("dropIdle").hidden = on; $("dropBusy").hidden = !
 function dropError(msg) { dropBusy(false); $("dropErr").hidden = false; $("dropErr").textContent = msg; }
 async function handleFile(file) {
   if (file.size > 25 * 1024 * 1024) return dropError("That file is larger than 25 MB.");
-  dropBusy(true, `${llmName()} is reading ${file.name}…`);
+  dropBusy(true, hasLlm() ? `${llmName()} is reading ${file.name}…` : `Reading ${file.name}…`);
   const fd = new FormData(); fd.append("file", file);
   try {
     await api("/api/document", { method: "POST", body: fd });
@@ -463,14 +466,16 @@ function sourceHead(key, logo, title, sub) {
   const s = state.status.sources[key];
   const st = s.connected ? "on" : "off";
   return `<div class="card-head"><div class="who"><span class="logo ${key}">${logo}</span><div><h2>${title}</h2><p class="sub">${sub}</p></div></div>
-    <span class="status ${st}"><span class="dot"></span>${s.connected ? "Connected" : "Not connected"}</span></div>`;
+    <span class="status ${s.demo ? "busy" : st}"><span class="dot"></span>${s.demo ? "Demo data" : s.connected ? "Connected" : "Not connected"}</span></div>`;
 }
 function connectBlock(key, scopes, btn) {
   const s = state.status.sources[key];
-  if (!s.configured) return `<div class="warn-box">The server has no client ID for ${esc(s.label)} yet. Add it to <span class="mono">.env</span> and restart the server.</div>`;
+  const demoBtn = `<button class="btn ${s.configured ? "quiet" : ""}" type="button" data-demo="${key}">Use demo data</button>`;
+  if (!s.configured) return `<div class="connect-panel"><div class="scopes">${scopes.map((x) => `<span class="scope">${x}</span>`).join("")}</div>
+    <p class="empty-note">No client ID is set for ${esc(s.label)}, so live sign-in is off. Use demo data for now.</p><div>${demoBtn}</div></div>`;
   return `<div class="connect-panel"><div class="scopes">${scopes.map((x) => `<span class="scope">${x}</span>`).join("")}</div>
     ${s.error ? `<div class="warn-box">${esc(s.error)}</div>` : ""}
-    <div><a class="btn" href="/auth/${key}/start">${btn}</a></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="/auth/${key}/start">${btn}</a>${demoBtn}</div>
     <p class="empty-note">You'll sign in on ${key === "epic" ? esc(ehrLabel()) + "'s sandbox (pick any test patient)" : "Medicare.gov's sandbox"} and come back here.</p></div>`;
 }
 const li = (a, b) => `<li><span>${a}</span><span class="d">${b}</span></li>`;
@@ -539,7 +544,8 @@ async function renderReview() {
 async function loadRecs(regenerate) {
   if (state.recs && !regenerate) return renderRecs();
   $("recLoading").hidden = false; $("recBody").hidden = true; $("recError").hidden = true;
-  $("recLoadingTitle").textContent = `${llmName()} is reviewing your combined record`;
+  $("recLoadingTitle").textContent = hasLlm() ? `${llmName()} is reviewing your combined record` : "Checking your combined record";
+  $("recLoadingText").textContent = hasLlm() ? "This usually takes 30–90 seconds." : "This takes a moment.";
   try {
     state.recs = await api("/api/recommendations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ regenerate: !!regenerate }) });
     renderRecs();
@@ -580,7 +586,8 @@ function renderRecs() {
   renderTrend(rec); renderRx(rec);
   $("qCard").hidden = !r.questionsForDoctor?.length;
   $("qCard").innerHTML = `<h3>Questions for your doctor</h3><ol class="qlist">${(r.questionsForDoctor || []).map((q) => `<li>${esc(q)}</li>`).join("")}</ol>`;
-  $("genNote").textContent = `Generated by ${llmName()} on ${new Date(r.generatedAt).toLocaleString()} from live ${ehrLabel()} and CMS data plus your upload. Not medical advice.`;
+  const anyDemo = state.status?.sources.epic.demo || state.status?.sources.cms.demo;
+  $("genNote").textContent = `Generated by ${hasLlm() ? llmName() : "built-in rules"} on ${new Date(r.generatedAt).toLocaleString()} from ${anyDemo ? "demo data" : `live ${ehrLabel()} and CMS data`} plus your upload. Not medical advice.`;
 }
 
 function renderTrend(rec) {
@@ -639,6 +646,11 @@ function renderRx(rec) {
 document.addEventListener("click", async (e) => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.dataset.go) go(b.dataset.go);
+  if (b.dataset.demo) {
+    await api(`/api/demo/${b.dataset.demo}`, { method: "POST" });
+    state[b.dataset.demo] = null; state.recs = null;
+    await refreshStatus(); renderReview();
+  }
   if (b.dataset.disconnect) {
     await api(`/auth/${b.dataset.disconnect}/disconnect`, { method: "POST" });
     state[b.dataset.disconnect] = null; state.recs = null;
@@ -651,6 +663,21 @@ drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.ad
 drop.addEventListener("dragleave", () => drop.classList.remove("over"));
 drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); });
 $("toRecs").onclick = () => go("recommendations");
+$("sampleDoc").onclick = async () => {
+  dropBusy(true, "Reading the sample lab report…");
+  try { await api("/api/document/sample", { method: "POST" }); await refreshStatus(); state.recs = null; dropBusy(false); go("review"); }
+  catch (e) { dropError(e.message); }
+};
+$("fullDemo").onclick = async () => {
+  dropBusy(true, "Loading the demo…");
+  try {
+    await api("/api/document/sample", { method: "POST" });
+    await api("/api/demo/epic", { method: "POST" });
+    await api("/api/demo/cms", { method: "POST" });
+    Object.assign(state, { epic: null, cms: null, record: null, recs: null });
+    await refreshStatus(); dropBusy(false); go("recommendations");
+  } catch (e) { dropError(e.message); }
+};
 $("backReview").onclick = () => go("review");
 $("regen").onclick = () => loadRecs(true);
 $("resetBtn").onclick = async () => { await api("/api/reset", { method: "POST" }); Object.assign(state, { epic: null, cms: null, record: null, recs: null }); await refreshStatus(); go("upload"); };
@@ -660,7 +687,7 @@ $("resetBtn").onclick = async () => { await api("/api/reset", { method: "POST" }
   if (params.get("error")) { banner(params.get("error")); history.replaceState(null, "", location.pathname + location.hash); }
   try { await refreshStatus(); } catch (e) { banner("Can't reach the Medivault server. Is it running?"); }
   if (state.status) SRC.epic = ehrLabel();
-  if (state.status && !state.status.llmConfigured) banner("The server has no AI model configured, so documents can't be read yet. Set LLM_API_KEY and LLM_MODEL in .env (see README).", "info");
+  if (state.status && !state.status.llmConfigured) banner("Demo mode: no AI model is configured, so documents are read by a built-in parser and recommendations come from built-in rules. Add LLM_API_KEY and LLM_MODEL to .env for AI.", "info");
   const start = location.hash.slice(1);
   go(VIEWS.includes(start) ? start : "upload", false);
 })();

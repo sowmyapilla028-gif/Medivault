@@ -3,7 +3,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { config } from "./config.js";
+import { config, llmConfigured } from "./config.js";
+import { localRecommendations, parseDocumentText } from "./local-engine.js";
 import { extractText, getDocumentProxy } from "unpdf";
 
 let client;
@@ -158,6 +159,14 @@ export async function extractDocument({ buffer, mimetype, filename }) {
   }
   const ask = "Transcribe this document into the required JSON structure.";
 
+  // No AI model configured: read the text and use the built-in parser.
+  if (!llmConfigured()) {
+    if (IMAGE_TYPES.has(mimetype)) throw new LlmError("Reading photos needs an AI model. Upload a text-based PDF or .txt file, or configure LLM_API_KEY and LLM_MODEL.", 422);
+    const text = mimetype === "application/pdf" ? await pdfToText(buffer) : buffer.toString("utf8");
+    if (text.replace(/\s/g, "").length < 20) throw new LlmError("This PDF has no readable text (it may be a scan). Upload a text-based PDF.", 422);
+    return parseDocumentText(text);
+  }
+
   if (config.llm.provider === "anthropic") {
     const block = mimetype === "application/pdf"
       ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: buffer.toString("base64") }, title: filename }
@@ -219,6 +228,7 @@ const line = (f) => [f.date || "undated", f.source, f.kind, f.label,
   f.interpretation ? `flag:${f.interpretation}` : "", f.ref ? `ref:${f.ref}` : ""].filter(Boolean).join(" | ");
 
 export async function generateRecommendations(record, document) {
+  if (!llmConfigured()) return localRecommendations(record, document);
   const clinical = record.facts.filter((f) => f.kind !== "fill").map(line).join("\n");
   const meds = record.medications.map((m) =>
     `${m.label}: ${m.fills.length} fill(s), last ${m.lastFill} (${m.daysSupply ?? "?"} days), runs out ${m.runOutDate}, ` +

@@ -36,6 +36,15 @@ browser ──────────▶ /api/recommendations: record + compute
 | `public/index.html` | The three-step UI |
 | `test/` | Tests that run the full flow against local mock servers |
 
+## Quick demo (no keys needed)
+
+```bash
+npm install
+npm start
+```
+
+Open http://localhost:3000 and click **Or run the whole demo with sample data**. With no AI model configured, Medivault reads documents with a built-in parser and writes recommendations with built-in rules, and the **Use demo data** buttons load a fictional patient's EHR record and pharmacy claims without signing in. Uploading your own text-based PDF also works in this mode.
+
 ## Setup
 
 Requires Node.js 20 or newer.

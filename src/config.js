@@ -73,4 +73,4 @@ export const hasAnthropicCredentials = () =>
 export const llmConfigured = () =>
   config.llm.provider === "anthropic" ? hasAnthropicCredentials() : Boolean(config.llm.apiKey && config.llm.model) ||
     Boolean(config.llm.model && /localhost|127\.0\.0\.1/.test(config.llm.baseUrl));
-export const llmLabel = () => (config.llm.provider === "anthropic" ? `Claude (${config.anthropic.model})` : config.llm.model || "LLM");
+export const llmLabel = () => (!llmConfigured() ? "Built-in rules" : config.llm.provider === "anthropic" ? `Claude (${config.anthropic.model})` : config.llm.model);
