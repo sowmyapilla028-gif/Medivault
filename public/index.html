@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Medivault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a three-screen flow under a sticky stepper. Upload = one centered drop target. Review = document + two record sources stacked as a checklist. Recommendations = findings column with a chart rail beside it. */
+:root {
+  --bg: #f2f5f7;
+  --surface: #ffffff;
+  --sunk: #e9eef2;
+  --line: #d6dee5;
+  --ink: #132330;
+  --muted: #5b6c79;
+  --accent: #0d6c78;
+  --accent-soft: #dceff1;
+  --accent-ink: #ffffff;
+  --epic: #7b3f91;
+  --cms: #1d5fb8;
+  --humana: #2f7d3a;
+  --upload: #a06006;
+  --crit: #b42318;
+  --crit-bg: #fdecea;
+  --warn: #8f5500;
+  --warn-bg: #fff2d9;
+  --ok: #26743a;
+  --ok-bg: #e4f3e7;
+  --low: #1d5fb8;
+  --low-bg: #e5eef9;
+  --shadow: 0 1px 2px rgba(19, 35, 48, .06), 0 6px 24px rgba(19, 35, 48, .06);
+  --font-display: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d161c; --surface: #142029; --sunk: #1a2933; --line: #293b47; --ink: #e2ecf2; --muted: #9bafbc;
+    --accent: #43b8c6; --accent-soft: #143840; --accent-ink: #05212a;
+    --epic: #cb9cdb; --cms: #84b3f2; --humana: #82d08d; --upload: #e8ab4c;
+    --crit: #ff8f85; --crit-bg: #3b1b19; --warn: #f1c066; --warn-bg: #352913; --ok: #82d08d; --ok-bg: #15301c; --low: #84b3f2; --low-bg: #182a3d;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d161c; --surface: #142029; --sunk: #1a2933; --line: #293b47; --ink: #e2ecf2; --muted: #9bafbc;
+  --accent: #43b8c6; --accent-soft: #143840; --accent-ink: #05212a;
+  --epic: #cb9cdb; --cms: #84b3f2; --humana: #82d08d; --upload: #e8ab4c;
+  --crit: #ff8f85; --crit-bg: #3b1b19; --warn: #f1c066; --warn-bg: #352913; --ok: #82d08d; --ok-bg: #15301c; --low: #84b3f2; --low-bg: #182a3d;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+p { margin: 0; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); font-size: .86em; }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1120px; margin: 0 auto; }
+
+/* Top bar + stepper */
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; padding-block: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; }
+.mark { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: grid; place-items: center; flex: none; }
+.mark svg { width: 18px; height: 18px; }
+.stepper { display: flex; align-items: center; gap: 6px; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
+.stepper li { display: flex; align-items: center; gap: 6px; }
+.stepper li + li::before { content: ""; width: 22px; height: 1px; background: var(--line); }
+.stepper button { display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 4px 6px; border-radius: 6px; color: var(--muted); font-weight: 600; font-size: .88rem; }
+.stepper button:disabled { cursor: default; opacity: .6; }
+.stepper .num { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid currentColor; display: grid; place-items: center; font-size: .75rem; font-family: var(--font-mono); }
+.stepper [aria-current="step"] { color: var(--accent); }
+.stepper [aria-current="step"] .num { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.stepper .done { color: var(--ink); }
+.stepper .done .num { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+.demo-tag { font-size: .75rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+
+main { padding-block: 28px 64px; }
+.view { display: grid; gap: 24px; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); border-radius: 10px; padding: 10px 18px; font-weight: 600; font-size: .95rem; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.quiet { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.btn.sm { padding: 6px 12px; font-size: .85rem; border-radius: 8px; }
+.btn.lg { padding: 13px 24px; font-size: 1rem; }
+.linkish { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; font-size: .88rem; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- Upload ---------- */
+.upload-hero { max-width: 680px; margin: 4vh auto 0; display: grid; gap: 22px; text-align: center; }
+.upload-hero h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.15; }
+.upload-hero .lede { color: var(--muted); font-size: 1.05rem; max-width: 52ch; margin: 0 auto; }
+.dropzone { background: var(--surface); border: 2px dashed var(--line); border-radius: 18px; padding: 36px 20px; display: grid; gap: 14px; justify-items: center; box-shadow: var(--shadow); transition: border-color .15s, background .15s; }
+.dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
+.dropzone .doc-icon { width: 56px; height: 56px; border-radius: 14px; background: var(--accent-soft); display: grid; place-items: center; }
+.dropzone .doc-icon svg { width: 28px; height: 28px; }
+.dropzone .types { font-size: .85rem; color: var(--muted); }
+.dropzone .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.reading { display: flex; align-items: center; gap: 10px; justify-content: center; color: var(--muted); font-size: .92rem; }
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .spinner { animation: spin .8s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } } }
+.upload-error { color: var(--crit); font-size: .9rem; }
+.next-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; text-align: left; }
+@media (max-width: 640px) { .next-steps { grid-template-columns: minmax(0, 1fr); } }
+.next-steps div { display: grid; gap: 2px; font-size: .86rem; color: var(--muted); padding: 12px 14px; border-radius: 12px; background: var(--sunk); }
+.next-steps b { color: var(--ink); font-size: .9rem; font-family: var(--font-display); }
+
+/* ---------- Shared card ---------- */
+.page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px 24px; flex-wrap: wrap; }
+.page-head h1 { font-size: clamp(1.5rem, 3vw, 2rem); }
+.page-head p { color: var(--muted); max-width: 62ch; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 16px; min-width: 0; box-shadow: var(--shadow); }
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.card-head .who { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.logo { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: .85rem; color: var(--surface); flex: none; }
+.logo.upload { background: var(--upload); } .logo.epic { background: var(--epic); } .logo.cms { background: var(--cms); } .logo.humana { background: var(--humana); }
+.card-head h2 { font-size: 1.08rem; }
+.card-head .sub { font-size: .85rem; color: var(--muted); }
+.status { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: .78rem; font-weight: 600; white-space: nowrap; }
+.status .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status.off { background: var(--sunk); color: var(--muted); }
+.status.on { background: var(--ok-bg); color: var(--ok); }
+.status.busy { background: var(--warn-bg); color: var(--warn); }
+
+/* Review */
+.review-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+@media (max-width: 920px) { .review-grid { grid-template-columns: minmax(0, 1fr); } }
+.review-main { display: grid; gap: 18px; min-width: 0; }
+.aside { display: grid; gap: 14px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 80px); }
+@media (max-width: 920px) { .aside { position: static; } }
+.checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.checklist li { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; }
+.tick { width: 20px; height: 20px; border-radius: 50%; flex: none; display: grid; place-items: center; border: 1.5px solid var(--line); margin-top: 1px; }
+.tick.yes { background: var(--ok); border-color: var(--ok); }
+.tick svg { width: 12px; height: 12px; }
+
+.values { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.value { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; min-width: 0; }
+.value .name { font-size: .8rem; color: var(--muted); }
+.value .num { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+.value .num input { width: 5.2ch; border: 0; border-bottom: 1px dashed var(--line); background: transparent; font: inherit; padding: 0; }
+.value .num small { font-family: var(--font-body); font-weight: 500; font-size: .78rem; color: var(--muted); }
+.flag { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--crit); }
+.meta-line { font-size: .85rem; color: var(--muted); display: flex; gap: 6px 16px; flex-wrap: wrap; }
+
+.connect-panel { display: grid; gap: 12px; }
+.scopes { display: flex; flex-wrap: wrap; gap: 6px; }
+.scope { font-family: var(--font-mono); font-size: .72rem; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; color: var(--muted); background: var(--sunk); }
+.signin { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.signin-bar { background: var(--sunk); padding: 6px 12px; font-family: var(--font-mono); font-size: .72rem; color: var(--muted); display: flex; gap: 8px; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.signin-body { padding: 14px; display: grid; gap: 8px; }
+.signin-step { display: flex; gap: 10px; align-items: center; font-size: .88rem; color: var(--muted); }
+.signin-step.done { color: var(--ink); }
+.signin-step .tick { width: 18px; height: 18px; }
+
+.groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .groups { grid-template-columns: minmax(0, 1fr); } }
+.group { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.group h3 { font-size: .82rem; font-family: var(--font-body); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.group h3 .mono { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .88rem; }
+.group li { display: flex; justify-content: space-between; gap: 10px; min-width: 0; }
+.group li span:first-child { min-width: 0; }
+.group li .d { color: var(--muted); font-size: .8rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.group.wide { grid-column: 1 / -1; }
+.match { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--ok); background: var(--ok-bg); border-radius: 8px; padding: 6px 10px; }
+.match svg { width: 14px; height: 14px; flex: none; }
+
+.optional { border-style: dashed; box-shadow: none; }
+.switch { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: .9rem; cursor: pointer; }
+.switch input { appearance: none; width: 40px; height: 22px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; flex: none; margin: 0; }
+.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); transition: left .15s; }
+.switch input:checked { background: var(--accent); }
+.switch input:checked::after { left: 21px; }
+
+details.dev summary { cursor: pointer; font-weight: 600; font-size: .9rem; color: var(--muted); }
+.table-wrap { overflow-x: auto; }
+.dev table { width: 100%; border-collapse: collapse; font-size: .82rem; min-width: 560px; margin-top: 10px; }
+.dev td, .dev th { border-bottom: 1px solid var(--line); padding: 7px 6px; text-align: left; vertical-align: top; }
+.dev th { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+/* ---------- Recommendations ---------- */
+.rec-hero { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; display: grid; gap: 14px; box-shadow: var(--shadow); }
+.rec-hero h1 { font-size: clamp(1.45rem, 3vw, 1.95rem); }
+.rec-hero p { color: var(--muted); max-width: 70ch; }
+.tally { display: flex; gap: 10px; flex-wrap: wrap; }
+.tally span { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 10px; font-size: .88rem; font-weight: 600; }
+.tally b { font-family: var(--font-display); font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.tally .high { background: var(--crit-bg); color: var(--crit); }
+.tally .med { background: var(--warn-bg); color: var(--warn); }
+.tally .low { background: var(--low-bg); color: var(--low); }
+.src-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: .82rem; color: var(--muted); }
+
+.rec-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start; }
+@media (max-width: 980px) { .rec-grid { grid-template-columns: minmax(0, 1fr); } }
+.rec-col { display: grid; gap: 14px; min-width: 0; }
+.rec-col h2 { font-size: .8rem; font-family: var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-top: 8px; }
+.rec { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; display: grid; min-width: 0; overflow: hidden; box-shadow: var(--shadow); }
+.rec-body { padding: 16px 18px; display: grid; gap: 10px; border-left: 4px solid var(--sevc); }
+.rec.high { --sevc: var(--crit); } .rec.med { --sevc: var(--warn); } .rec.low { --sevc: var(--low); }
+.rec-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.rec-top h3 { font-size: 1.05rem; line-height: 1.35; }
+.sev { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; border-radius: 5px; padding: 3px 8px; white-space: nowrap; }
+.sev.high { background: var(--crit-bg); color: var(--crit); } .sev.med { background: var(--warn-bg); color: var(--warn); } .sev.low { background: var(--low-bg); color: var(--low); }
+.rec-why { font-size: .93rem; }
+.rec-do { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; font-size: .92rem; font-weight: 500; }
+.rec-do svg { width: 16px; height: 16px; flex: none; margin-top: 3px; }
+.rec details { border-top: 1px solid var(--line); }
+.rec summary { padding: 10px 18px; cursor: pointer; font-size: .85rem; font-weight: 600; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; list-style: none; }
+.rec summary::-webkit-details-marker { display: none; }
+.rec summary::before { content: "▸"; font-size: .8rem; }
+.rec details[open] summary::before { content: "▾"; }
+.evidence { list-style: none; margin: 0; padding: 0 18px 14px; display: grid; gap: 6px; font-size: .86rem; }
+.evidence li { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+.evidence li span:last-child { min-width: 0; }
+.tag { font-family: var(--font-mono); font-size: .68rem; font-weight: 500; border-radius: 4px; padding: 1px 6px; white-space: nowrap; flex: none; color: var(--surface); }
+.tag.upload { background: var(--upload); } .tag.epic { background: var(--epic); } .tag.cms { background: var(--cms); } .tag.humana { background: var(--humana); }
+.rec.teaser { box-shadow: none; border-style: dashed; background: transparent; }
+.rec.teaser .rec-body { border-left-color: var(--line); }
+
+.rail { display: grid; gap: 16px; min-width: 0; }
+.chart-card { gap: 10px; }
+.chart-card h3 { font-size: .95rem; }
+.chart-card .note { font-size: .8rem; color: var(--muted); }
+.chart-card svg { width: 100%; height: auto; max-width: 100%; display: block; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: .78rem; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.ai-out { white-space: pre-wrap; font-size: .92rem; }
+.ai-status { font-size: .82rem; color: var(--muted); }
+.footer-nav { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .view { animation: enter .3s ease both; }
+  @keyframes enter { from { opacity: .4; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+}
+
+.banner { border-radius: 12px; padding: 10px 14px; font-size: .9rem; display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.banner.err { background: var(--crit-bg); color: var(--crit); }
+.banner.info { background: var(--low-bg); color: var(--low); }
+.banner button { background: none; border: 0; color: inherit; font-weight: 600; text-decoration: underline; }
+.warn-box { background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 8px 12px; font-size: .86rem; }
+.mismatch { background: var(--warn-bg); color: var(--warn); }
+.loading-card { display: grid; gap: 12px; justify-items: center; text-align: center; padding: 48px 20px; }
+.loading-card .spinner { width: 28px; height: 28px; border-width: 3px; }
+.qlist { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: .92rem; }
+.tag.document { background: var(--upload); }
+.empty-note { color: var(--muted); font-size: .88rem; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap gutter">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+      Medivault
+    </div>
+    <ol class="stepper" id="stepper" aria-label="Progress"></ol>
+    <button class="linkish" id="resetBtn" type="button">Start over</button>
+  </div>
+</header>
+
+<main class="gutter">
+  <div class="wrap" style="display:grid;gap:16px">
+    <div id="banner" hidden></div>
+
+    <!-- ============ 1. UPLOAD ============ -->
+    <section class="view" id="view-upload" aria-labelledby="upTitle">
+      <div class="upload-hero">
+        <h1 id="upTitle">Start with your latest health document</h1>
+        <p class="lede">Upload a lab report or visit summary. Claude reads it, then we pull in your Epic health record and your Medicare pharmacy claims so the recommendations see the whole picture.</p>
+        <div class="dropzone" id="drop">
+          <div class="doc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg></div>
+          <div id="dropIdle" style="display:grid;gap:12px;justify-items:center">
+            <p style="font-weight:600;font-size:1.05rem">Drag a file here</p>
+            <p class="types">PDF, photo (JPG, PNG) or text file, up to 25 MB</p>
+            <div class="row">
+              <label class="btn" for="fileIn">Choose file</label>
+              <input id="fileIn" type="file" accept=".pdf,.txt,.json,image/jpeg,image/png,image/webp" hidden>
+            </div>
+          </div>
+          <div class="reading" id="dropBusy" hidden><span class="spinner"></span><span id="dropBusyText">Claude is reading your document…</span></div>
+          <p class="upload-error" id="dropErr" hidden></p>
+        </div>
+        <div class="next-steps">
+          <div><b>Review</b>Check what Claude read and connect Epic and Medicare.</div>
+          <div><b>Combine</b>Your document, clinical record and pharmacy fills are matched to you.</div>
+          <div><b>Recommend</b>See what needs attention, with the evidence for each.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 2. REVIEW ============ -->
+    <section class="view" id="view-review" aria-labelledby="rvTitle" hidden>
+      <div class="page-head">
+        <div style="display:grid;gap:6px">
+          <h1 id="rvTitle">Review and connect</h1>
+          <p>Check what Claude read from your document, then sign in to Epic and Medicare to add your records.</p>
+        </div>
+      </div>
+      <div class="review-grid">
+        <div class="review-main">
+          <article class="card" id="docCard"></article>
+          <article class="card" id="epicCard"></article>
+          <article class="card" id="cmsCard"></article>
+        </div>
+        <aside class="aside">
+          <div class="card">
+            <h2 style="font-size:1rem">Ready to combine</h2>
+            <ul class="checklist" id="readyList"></ul>
+            <button class="btn lg" id="toRecs" type="button" disabled>See recommendations</button>
+            <p class="empty-note" id="readyNote"></p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ============ 3. RECOMMENDATIONS ============ -->
+    <section class="view" id="view-recommendations" aria-labelledby="rcTitle" hidden>
+      <div id="recLoading" class="card loading-card" hidden>
+        <span class="spinner"></span>
+        <h2 style="font-size:1.1rem">Claude is reviewing your combined record</h2>
+        <p class="muted" id="recLoadingText">This usually takes 30–90 seconds.</p>
+      </div>
+      <div id="recError" hidden></div>
+      <div id="recBody" hidden style="display:grid;gap:24px">
+        <div class="rec-hero">
+          <h1 id="rcTitle"></h1>
+          <p id="rcLede"></p>
+          <div class="tally" id="tally"></div>
+          <div class="src-row" id="srcRow"></div>
+        </div>
+        <div id="gaps"></div>
+        <div class="rec-grid">
+          <div class="rec-col" id="recCol"></div>
+          <div class="rail">
+            <div class="card chart-card" id="trendCard" hidden></div>
+            <div class="card chart-card" id="rxCard" hidden></div>
+            <div class="card chart-card" id="qCard" hidden></div>
+          </div>
+        </div>
+        <div class="footer-nav">
+          <button class="btn quiet" id="backReview" type="button">Back to review</button>
+          <button class="btn ghost" id="regen" type="button">Regenerate</button>
+        </div>
+        <p class="muted" style="font-size:.8rem" id="genNote"></p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+"use strict";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const toD = (s) => new Date(s + "T00:00:00Z");
+const fmt = (s) => (s ? toD(s).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }) : "undated");
+const fmtMY = (s) => (s ? toD(s).toLocaleDateString("en-US", { year: "numeric", month: "short", timeZone: "UTC" }) : "");
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const TICK = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--surface)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
+const TICK_OK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
+const ARROW = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+const SRC = { document: "Your upload", epic: "Epic", cms: "CMS pharmacy" };
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { credentials: "same-origin", ...opts });
+  let body = null;
+  try { body = await res.json(); } catch {}
+  if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
+  return body;
+}
+
+/* ---------------- state + routing ---------------- */
+const VIEWS = ["upload", "review", "recommendations"];
+const state = { view: "upload", status: null, epic: null, cms: null, record: null, recs: null };
+const connected = (k) => !!state.status?.sources[k]?.connected;
+const canReview = () => !!state.status?.document;
+const canRecs = () => canReview() && (connected("epic") || connected("cms"));
+
+function banner(msg, kind = "err") {
+  const b = $("banner");
+  if (!msg) { b.hidden = true; return; }
+  b.hidden = false; b.className = "banner " + kind;
+  b.innerHTML = `<span>${esc(msg)}</span><button type="button" id="bannerX">Dismiss</button>`;
+  $("bannerX").onclick = () => banner(null);
+}
+
+function go(view, push = true) {
+  if (view === "review" && !canReview()) view = "upload";
+  if (view === "recommendations" && !canRecs()) view = canReview() ? "review" : "upload";
+  state.view = view;
+  for (const v of VIEWS) $("view-" + v).hidden = v !== view;
+  if (push && location.hash !== "#" + view) history.replaceState(null, "", location.pathname + "#" + view);
+  renderStepper();
+  if (view === "review") renderReview();
+  if (view === "recommendations") loadRecs(false);
+  window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+}
+window.addEventListener("hashchange", () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== state.view) go(v, false); });
+
+function renderStepper() {
+  const labels = { upload: "Upload", review: "Review", recommendations: "Recommendations" };
+  const idx = VIEWS.indexOf(state.view);
+  const allowed = { upload: true, review: canReview(), recommendations: canRecs() };
+  $("stepper").innerHTML = VIEWS.map((v, i) => `<li><button type="button" data-go="${v}" ${allowed[v] ? "" : "disabled"} class="${i < idx ? "done" : ""}" ${v === state.view ? 'aria-current="step"' : ""}><span class="num">${i < idx ? "✓" : i + 1}</span>${labels[v]}</button></li>`).join("");
+}
+
+async function refreshStatus() { state.status = await api("/api/status"); return state.status; }
+
+/* ---------------- upload ---------------- */
+function dropBusy(on, msg) { $("dropIdle").hidden = on; $("dropBusy").hidden = !on; if (msg) $("dropBusyText").textContent = msg; if (on) $("dropErr").hidden = true; }
+function dropError(msg) { dropBusy(false); $("dropErr").hidden = false; $("dropErr").textContent = msg; }
+async function handleFile(file) {
+  if (file.size > 25 * 1024 * 1024) return dropError("That file is larger than 25 MB.");
+  dropBusy(true, `Claude is reading ${file.name}…`);
+  const fd = new FormData(); fd.append("file", file);
+  try {
+    await api("/api/document", { method: "POST", body: fd });
+    await refreshStatus();
+    state.recs = null;
+    dropBusy(false);
+    go("review");
+  } catch (e) { dropError(e.message); }
+}
+
+/* ---------------- review ---------------- */
+function docCard() {
+  const d = state.status.document;
+  const results = d.results || [];
+  return `<div class="card-head"><div class="who"><span class="logo upload">DOC</span><div><h2>Your document</h2>
+      <p class="sub">${esc(d.name)} · ${esc(d.documentType)}${d.documentDate ? " · " + fmt(d.documentDate) : ""}${d.patientName ? " · " + esc(d.patientName) : ""}</p></div></div>
+      <span class="status on"><span class="dot"></span>${results.length} result${results.length === 1 ? "" : "s"} read by Claude</span></div>
+    <p style="font-size:.92rem">${esc(d.summary)}</p>
+    ${results.length ? `<div class="values">${results.map((r) => `<div class="value"><span class="name">${esc(r.name)}</span>
+      <span class="num">${esc(r.valueText || (r.value ?? "—"))}<small>${esc(r.unit || "")}</small></span>
+      ${r.flag && r.flag !== "normal" ? `<span class="flag">${esc(r.flag)}</span>` : `<span class="name">${esc(r.referenceRange || "")}</span>`}</div>`).join("")}</div>` : `<p class="empty-note">No numeric results found in this document.</p>`}
+    ${d.diagnoses?.length || d.medications?.length ? `<div class="groups">${d.diagnoses?.length ? `<div class="group"><h3>Diagnoses mentioned</h3><ul>${d.diagnoses.map((x) => `<li><span>${esc(x)}</span></li>`).join("")}</ul></div>` : ""}${d.medications?.length ? `<div class="group"><h3>Medications mentioned</h3><ul>${d.medications.map((x) => `<li><span>${esc(x)}</span></li>`).join("")}</ul></div>` : ""}</div>` : ""}
+    <div class="meta-line"><button class="linkish" type="button" id="replaceDoc">Upload a different document</button></div>`;
+}
+
+function identityLine(key) {
+  const id = state.record?.identity?.[key];
+  if (!id) return "";
+  if (id.status === "match") return `<div class="match">${TICK_OK}Matches your document: ${esc(id.name)}${id.birthDate ? ", born " + fmt(id.birthDate) : ""}</div>`;
+  if (id.status === "mismatch") return `<div class="warn-box">This record belongs to ${esc(id.name || "a different person")}${id.birthDate ? " (born " + fmt(id.birthDate) + ")" : ""}, which doesn't match your document${state.record.identity.document.name ? " (" + esc(state.record.identity.document.name) + ")" : ""}. Sandbox test accounts are usually different people; recommendations will flag this.</div>`;
+  return `<div class="warn-box">Signed in as ${esc(id.name || "unknown")}. We couldn't confirm this matches your document.</div>`;
+}
+
+function sourceHead(key, logo, title, sub) {
+  const s = state.status.sources[key];
+  const st = s.connected ? "on" : "off";
+  return `<div class="card-head"><div class="who"><span class="logo ${key}">${logo}</span><div><h2>${title}</h2><p class="sub">${sub}</p></div></div>
+    <span class="status ${st}"><span class="dot"></span>${s.connected ? "Connected" : "Not connected"}</span></div>`;
+}
+function connectBlock(key, scopes, btn) {
+  const s = state.status.sources[key];
+  if (!s.configured) return `<div class="warn-box">The server has no client ID for ${esc(s.label)} yet. Add it to <span class="mono">.env</span> and restart the server.</div>`;
+  return `<div class="connect-panel"><div class="scopes">${scopes.map((x) => `<span class="scope">${x}</span>`).join("")}</div>
+    ${s.error ? `<div class="warn-box">${esc(s.error)}</div>` : ""}
+    <div><a class="btn" href="/auth/${key}/start">${btn}</a></div>
+    <p class="empty-note">You'll sign in on ${key === "epic" ? "Epic's MyChart sandbox" : "Medicare.gov's sandbox"} and come back here.</p></div>`;
+}
+const li = (a, b) => `<li><span>${a}</span><span class="d">${b}</span></li>`;
+const group = (title, items, wide) => `<div class="group${wide ? " wide" : ""}"><h3>${title} <span class="mono">${items.length}</span></h3>${items.length ? `<ul>${items.join("")}</ul>` : `<p class="empty-note">None on file</p>`}</div>`;
+const valueOf = (f) => f.valueText || (f.value != null ? `<b>${esc(f.value)}</b> ${esc(f.unit || "")}` : "");
+
+function epicCard() {
+  const head = sourceHead("epic", "EHR", "Epic health record", "Problem list, labs, vitals, allergies and vaccines");
+  if (!connected("epic")) return head + connectBlock("epic", ["Patient", "Condition", "Observation · labs", "Observation · vitals", "AllergyIntolerance", "Immunization"], "Connect Epic");
+  if (!state.epic) return head + `<div class="reading"><span class="spinner"></span>Loading your Epic record…</div>`;
+  const F = [...state.epic.facts].sort((x, y) => (y.date || "").localeCompare(x.date || "")), pick = (k) => F.filter((f) => f.kind === k);
+  const latest = (list) => { const seen = new Set(); return list.filter((f) => { const k = f.code || f.label; if (seen.has(k)) return false; seen.add(k); return true; }); };
+  const labs = latest(pick("lab")), vitals = latest(pick("vital"));
+  return head + identityLine("epic") +
+    (state.epic.warnings?.length ? `<div class="warn-box">Some data couldn't be loaded: ${esc(state.epic.warnings.join("; "))}</div>` : "") +
+    `<div class="groups">
+      ${group("Conditions", pick("condition").map((f) => li(esc(f.label), f.date ? "since " + toD(f.date).getUTCFullYear() : "")))}
+      ${group("Allergies", pick("allergy").map((f) => li(esc(f.label), esc(f.valueText || ""))))}
+      ${group(`Lab results (latest of ${pick("lab").length})`, labs.slice(0, 12).map((f) => li(`${esc(f.label)} ${valueOf(f)}`, fmtMY(f.date))))}
+      ${group(`Vitals (latest of ${pick("vital").length})`, vitals.slice(0, 10).map((f) => li(`${esc(f.label)} ${valueOf(f)}`, fmtMY(f.date))))}
+      ${group("Vaccines", pick("immunization").map((f) => li(esc(f.label), fmt(f.date))), true)}
+    </div><div class="meta-line"><button class="linkish" type="button" data-disconnect="epic">Disconnect Epic</button></div>`;
+}
+
+function cmsCard() {
+  const head = sourceHead("cms", "Rx", "Pharmacy claims · CMS Blue Button", "Insurer A · prescriptions actually filled (Medicare Part D)");
+  if (!connected("cms")) return head + connectBlock("cms", ["Patient", "ExplanationOfBenefit · type=pde"], "Connect Medicare");
+  if (!state.record) return head + `<div class="reading"><span class="spinner"></span>Loading your pharmacy claims…</div>`;
+  const meds = state.record.medications;
+  return head + identityLine("cms") +
+    (state.cms?.warnings?.length ? `<div class="warn-box">Some data couldn't be loaded: ${esc(state.cms.warnings.join("; "))}</div>` : "") +
+    (meds.length ? `<div class="groups">${meds.slice(0, 12).map((m) => `<div class="group"><h3>${esc(m.drug)} <span class="mono">${m.fills.length} fill${m.fills.length > 1 ? "s" : ""}</span></h3><ul>
+      <li><span><b>${esc(m.label)}</b></span></li>
+      <li><span>Last fill ${fmt(m.lastFill)}</span><span class="d">${m.daysSupply ?? "?"}-day supply</span></li></ul>
+      ${m.status === "lapsed" ? `<span class="flag">Ran out ${m.daysWithoutSupply} days ago</span>` : m.status === "one-time" ? `<span class="empty-note">One-time fill</span>` : `<span style="color:var(--ok);font-size:.78rem;font-weight:600">Supply current</span>`}</div>`).join("")}</div>
+      ${meds.length > 12 ? `<p class="empty-note">Showing 12 of ${meds.length} medications.</p>` : ""}` : `<p class="empty-note">No Part D pharmacy claims were returned for this beneficiary.</p>`) +
+    `<div class="meta-line"><button class="linkish" type="button" data-disconnect="cms">Disconnect Medicare</button></div>`;
+}
+
+async function renderReview() {
+  if (!state.status?.document) return;
+  const paint = () => {
+    $("docCard").innerHTML = docCard();
+    $("epicCard").innerHTML = epicCard();
+    $("cmsCard").innerHTML = cmsCard();
+    const items = [[true, "Document read", state.status.document.documentType],
+      [connected("epic"), "Epic health record", "Clinical data"], [connected("cms"), "CMS pharmacy claims", "Prescription fills"]];
+    $("readyList").innerHTML = items.map(([ok, a, b]) => `<li><span class="tick ${ok ? "yes" : ""}">${ok ? TICK : ""}</span><span><b>${esc(a)}</b><br><span class="muted" style="font-size:.82rem">${esc(b)}</span></span></li>`).join("");
+    $("toRecs").disabled = !canRecs();
+    $("readyNote").textContent = canRecs() ? (connected("epic") && connected("cms") ? "" : "You can continue now, but connecting both gives better recommendations.") : "Connect at least one record to continue.";
+    $("replaceDoc").onclick = async () => { await api("/api/document", { method: "DELETE" }); await refreshStatus(); go("upload"); };
+    renderStepper();
+  };
+  paint();
+  try {
+    const jobs = [];
+    if (connected("epic") && !state.epic) jobs.push(api("/api/sources/epic").then((d) => (state.epic = d)));
+    if (connected("cms") && !state.cms) jobs.push(api("/api/sources/cms").then((d) => (state.cms = d)));
+    await Promise.all(jobs);
+    state.record = await api("/api/record");
+  } catch (e) { banner(e.message); await refreshStatus(); }
+  paint();
+}
+
+/* ---------------- recommendations ---------------- */
+async function loadRecs(regenerate) {
+  if (state.recs && !regenerate) return renderRecs();
+  $("recLoading").hidden = false; $("recBody").hidden = true; $("recError").hidden = true;
+  try {
+    state.recs = await api("/api/recommendations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ regenerate: !!regenerate }) });
+    renderRecs();
+  } catch (e) {
+    $("recError").hidden = false;
+    $("recError").innerHTML = `<div class="card"><h2 style="font-size:1.05rem">We couldn't generate recommendations</h2><p>${esc(e.message)}</p><div><button class="btn" type="button" id="retryRecs">Try again</button></div></div>`;
+    $("retryRecs").onclick = () => loadRecs(true);
+  } finally { $("recLoading").hidden = true; }
+}
+
+function renderRecs() {
+  const r = state.recs, rec = r.record;
+  $("recBody").hidden = false;
+  const recs = r.recommendations || [];
+  const n = (p) => recs.filter((x) => x.priority === p).length;
+  $("rcTitle").textContent = r.headline;
+  $("rcLede").textContent = r.overview;
+  $("tally").innerHTML = `<span class="high"><b>${n("high")}</b> act now</span><span class="med"><b>${n("medium")}</b> soon</span><span class="low"><b>${n("low")}</b> routine</span>`;
+  const srcs = ["document", "epic", "cms"].filter((s) => rec.counts[s] > 0);
+  $("srcRow").innerHTML = "Sources: " + srcs.map((s) => `<span class="tag ${s}">${SRC[s]}</span> <span>${rec.counts[s]} item${rec.counts[s] === 1 ? "" : "s"}</span>`).join(" ");
+  $("gaps").innerHTML = r.dataGaps?.length ? `<div class="warn-box"><b>Before you read these:</b><ul class="qlist" style="margin-top:6px">${r.dataGaps.map((g) => `<li>${esc(g)}</li>`).join("")}</ul></div>` : "";
+  const groups = [["high", "Act now"], ["medium", "Soon"], ["low", "Routine"]];
+  let html = "";
+  for (const [p, label] of groups) {
+    const list = recs.filter((x) => x.priority === p); if (!list.length) continue;
+    const cls = p === "medium" ? "med" : p;
+    html += `<h2>${label}</h2>` + list.map((x) => {
+      const used = [...new Set(x.evidence.map((e) => e.source))];
+      return `<article class="rec ${cls}"><div class="rec-body">
+        <div class="rec-top"><h3>${esc(x.title)}</h3><span class="sev ${cls}">${label}</span></div>
+        <p class="rec-why">${esc(x.why)}</p>
+        <div class="rec-do">${ARROW}<span>${esc(x.action)}</span></div></div>
+        <details ${p === "high" ? "open" : ""}><summary>How we know ${used.map((s) => `<span class="tag ${s}">${SRC[s]}</span>`).join("")}</summary>
+        <ul class="evidence">${x.evidence.map((e) => `<li><span class="tag ${e.source}">${SRC[e.source]}</span><span>${esc(e.detail)}</span></li>`).join("")}</ul></details></article>`;
+    }).join("");
+  }
+  $("recCol").innerHTML = html || `<div class="card"><p>No recommendations came back for this record.</p></div>`;
+  renderTrend(rec); renderRx(rec);
+  $("qCard").hidden = !r.questionsForDoctor?.length;
+  $("qCard").innerHTML = `<h3>Questions for your doctor</h3><ol class="qlist">${(r.questionsForDoctor || []).map((q) => `<li>${esc(q)}</li>`).join("")}</ol>`;
+  $("genNote").textContent = `Generated by Claude on ${new Date(r.generatedAt).toLocaleString()} from live Epic and CMS data plus your upload. Not medical advice.`;
+}
+
+function renderTrend(rec) {
+  const pref = ["a1c", "ldl", "glucose", "egfr", "uacr", "bp", "bmi"];
+  const names = { a1c: "Hemoglobin A1c", ldl: "LDL cholesterol", glucose: "Glucose", egfr: "eGFR", uacr: "Urine albumin/creatinine", bp: "Blood pressure (systolic)", bmi: "BMI" };
+  const key = pref.find((k) => (rec.series[k] || []).length >= 2) || pref.find((k) => (rec.series[k] || []).length);
+  const card = $("trendCard");
+  if (!key) { card.hidden = true; return; }
+  card.hidden = false;
+  const pts = rec.series[key].slice(-12);
+  const W = 340, H = 170, L = 38, R = 14, T = 22, B = 26;
+  const vals = pts.map((p) => p.value), lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo || Math.abs(hi) * 0.2 || 1) * 0.25;
+  const y0 = lo - pad, y1 = hi + pad;
+  const t0 = toD(pts[0].date).getTime(), t1 = toD(pts[pts.length - 1].date).getTime();
+  const x = (d) => pts.length === 1 ? (L + W - R) / 2 : L + (W - L - R) * ((toD(d).getTime() - t0) / Math.max(1, t1 - t0));
+  const y = (v) => T + (H - T - B) * (1 - (v - y0) / (y1 - y0));
+  const P = pts.map((p) => [x(p.date), y(p.value), p]);
+  const line = P.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const ticks = [y0 + (y1 - y0) * 0.1, (y0 + y1) / 2, y1 - (y1 - y0) * 0.1];
+  const col = { epic: "var(--epic)", document: "var(--upload)", cms: "var(--cms)" };
+  const unit = pts[pts.length - 1].unit || "";
+  card.innerHTML = `<h3>${names[key]} over time</h3><p class="note">${pts.length} reading${pts.length > 1 ? "s" : ""}${unit ? " · " + esc(unit) : ""} from ${[...new Set(pts.map((p) => SRC[p.source]))].join(" and ")}</p>
+  <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${names[key]}: ${pts.map((p) => p.value + " on " + fmt(p.date)).join(", ")}">
+    ${ticks.map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${+v.toFixed(1)}</text>`).join("")}
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/>
+    ${P.map(([px, py, p], i) => `<circle cx="${px}" cy="${py}" r="${i === P.length - 1 ? 6 : 4.5}" fill="${col[p.source]}" stroke="var(--surface)" stroke-width="2"/>${i === 0 || i === P.length - 1 ? `<text x="${Math.min(Math.max(px, L + 14), W - R - 14)}" y="${py - 11}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink)">${p.value}</text><text x="${Math.min(Math.max(px, L + 22), W - R - 22)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${fmtMY(p.date)}</text>` : ""}`).join("")}
+  </svg>
+  <div class="legend">${[...new Set(pts.map((p) => p.source))].map((s) => `<span><i style="background:${col[s]}"></i>${SRC[s]}</span>`).join("")}</div>`;
+}
+
+function renderRx(rec) {
+  const card = $("rxCard");
+  const meds = rec.medications.filter((m) => !m.oneTime).slice(0, 6);
+  if (!meds.length) { card.hidden = true; return; }
+  card.hidden = false;
+  const end = rec.asOf, start = new Date(toD(end).getTime() - 300 * 86400000).toISOString().slice(0, 10);
+  const span = (toD(end) - toD(start)) / 86400000;
+  const W = 340, L = 96, R = 10, rowH = 30, T = 8, H = T + meds.length * rowH + 22;
+  const x = (d) => L + (W - L - R) * (Math.max(0, Math.min(span, (toD(d) - toD(start)) / 86400000)) / span);
+  const addDays = (s, n) => new Date(toD(s).getTime() + n * 86400000).toISOString().slice(0, 10);
+  let rows = "";
+  meds.forEach((m, i) => {
+    const yy = T + i * rowH;
+    rows += `<text x="0" y="${yy + 15}" font-size="11" fill="var(--ink)">${esc(m.drug.slice(0, 14))}</text><rect x="${L}" y="${yy + 5}" width="${W - L - R}" height="14" rx="3" fill="var(--crit)" fill-opacity="0.16"/>`;
+    for (const f of m.fills) { const a = x(f.date), b = x(addDays(f.date, f.daysSupply || 30)); if (b > a) rows += `<rect x="${a.toFixed(1)}" y="${yy + 5}" width="${(b - a).toFixed(1)}" height="14" rx="3" fill="var(--cms)"/>`; }
+  });
+  card.innerHTML = `<h3>Medication supply, last 10 months</h3><p class="note">From CMS pharmacy claims. Each bar is a fill; red shows days with no medicine on hand.</p>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Medication supply timeline">${rows}
+    <line x1="${x(end)}" x2="${x(end)}" y1="${T}" y2="${H - 20}" stroke="var(--ink)" stroke-dasharray="3 3"/>
+    <text x="${L}" y="${H - 6}" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${fmtMY(start)}</text>
+    <text x="${W - R}" y="${H - 6}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono, monospace">Today</text></svg>
+    <div class="legend"><span><i style="background:var(--cms)"></i>Supply on hand</span><span><i style="background:var(--crit);opacity:.3"></i>Gap</span></div>`;
+}
+
+/* ---------------- wiring ---------------- */
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.go) go(b.dataset.go);
+  if (b.dataset.disconnect) {
+    await api(`/auth/${b.dataset.disconnect}/disconnect`, { method: "POST" });
+    state[b.dataset.disconnect] = null; state.recs = null;
+    await refreshStatus(); renderReview();
+  }
+});
+$("fileIn").onchange = (e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; };
+const drop = $("drop");
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); });
+$("toRecs").onclick = () => go("recommendations");
+$("backReview").onclick = () => go("review");
+$("regen").onclick = () => loadRecs(true);
+$("resetBtn").onclick = async () => { await api("/api/reset", { method: "POST" }); Object.assign(state, { epic: null, cms: null, record: null, recs: null }); await refreshStatus(); go("upload"); };
+
+(async () => {
+  const params = new URLSearchParams(location.search);
+  if (params.get("error")) { banner(params.get("error")); history.replaceState(null, "", location.pathname + location.hash); }
+  try { await refreshStatus(); } catch (e) { banner("Can't reach the Medivault server. Is it running?"); }
+  if (state.status && !state.status.claudeConfigured) banner("The server has no Anthropic API key, so documents can't be read yet. Add ANTHROPIC_API_KEY to .env.", "info");
+  const start = location.hash.slice(1);
+  go(VIEWS.includes(start) ? start : "upload", false);
+})();
+})();
+</script>
+</body>
+</html>
