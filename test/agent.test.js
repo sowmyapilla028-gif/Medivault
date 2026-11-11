@@ -112,3 +112,45 @@ test("agent: normal new results -> no follow-up, no calendar, no call, no emails
   assert.ok(!evs.some((e) => ["calendar", "transcript", "emails"].includes(e.type)));
   assert.equal((await call("/api/agent/appointment.ics")).status, 404);
 });
+
+test("tier 1: non-medical uploads are rejected with a clear message", async () => {
+  await call("/api/reset", { method: "POST" }); jar.clear();
+  const fd = new FormData();
+  fd.append("file", new Blob(["Shopping list: eggs, milk, bread"], { type: "text/plain" }), "notes.txt");
+  const res = await call("/api/document", { method: "POST", body: fd });
+  assert.equal(res.status, 422);
+  assert.match((await res.json()).error, /didn't find any lab results/);
+  assert.equal((await (await call("/api/status")).json()).document, null);
+});
+
+test("tier 1: normal-results sample -> agent decides no follow-up; texts use readable dates", async () => {
+  await call("/api/reset", { method: "POST" }); jar.clear();
+  const doc = await (await call("/api/document/sample?kind=normal", { method: "POST" })).json();
+  assert.equal(doc.results.find((r) => r.name === "Hemoglobin A1c").value, 6.8);
+  await call("/api/demo/epic", { method: "POST" }); await call("/api/demo/cms", { method: "POST" });
+  assert.equal((await (await call("/api/agent/triage")).json()).needed, false);
+  const recs = await (await call("/api/recommendations", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).json();
+  const text = JSON.stringify(recs.recommendations);
+  assert.doesNotMatch(text, /\b\d{4}-\d{2}-\d{2}\b/, "no raw ISO dates in recommendation text");
+  assert.match(text, /[A-Z][a-z]{2} \d{1,2}, \d{4}/);
+});
+
+test("tier 1: a booking keeps going if the browser disconnects, and the state can be read back", async () => {
+  await call("/api/reset", { method: "POST" }); jar.clear();
+  await call("/api/document/sample", { method: "POST" });
+  await call("/api/demo/epic", { method: "POST" }); await call("/api/demo/cms", { method: "POST" });
+  const st = (await events("/api/agent/run?fast=1")).at(-1).state;
+  // Start booking at normal pace and hang up after the first chunk.
+  const ctl = new AbortController();
+  const res = await call(`/api/agent/book?slot=${encodeURIComponent(st.proposals[0].id)}`, { signal: ctl.signal });
+  await res.body.getReader().read(); ctl.abort();
+  await new Promise((r) => setTimeout(r, 300));
+  const mid = await (await call("/api/agent")).json();
+  assert.equal(mid.status, "booking");
+  for (let i = 0; i < 40; i++) {
+    const a = await (await call("/api/agent")).json();
+    if (a.status === "booked") { assert.equal(a.emails.length, 2); return; }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  assert.fail("booking never finished after disconnect");
+});

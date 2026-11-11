@@ -56,8 +56,19 @@ export function demoCms() {
   return { patient: patientSummary({ ...PATIENT, id: "-10000000000066" }), facts: eobs.map(normalizePde).map((f) => ({ ...f, demo: true })), warnings: [], demo: true };
 }
 
-export function sampleReportText() {
+export function sampleReportText(kind = "followup") {
   const d = sh("2026-11-03").split("-"), r = sh("2026-11-04").split("-");
+  if (kind === "normal") return `NORTHSIDE COMMUNITY LAB - PATIENT COPY (DEMO)
+Patient: Rosa Delgado    DOB: 03/14/1958
+Collected: ${d[1]}/${d[2]}/${d[0]}    Reported: ${r[1]}/${r[2]}/${r[0]}
+
+TEST                         RESULT     FLAG   REFERENCE
+Hemoglobin A1c               6.8 %             < 7.0 % (diabetes goal)
+Glucose, fasting             112 mg/dL  H      70-99 mg/dL
+LDL cholesterol (calc)       94 mg/dL          < 100 mg/dL
+eGFR                         70                > 59 mL/min/1.73m2
+
+Comment: A1c improved from prior result.`;
   return `NORTHSIDE COMMUNITY LAB - PATIENT COPY (DEMO)
 Patient: Rosa Delgado    DOB: 03/14/1958
 Collected: ${d[1]}/${d[2]}/${d[0]}    Reported: ${r[1]}/${r[2]}/${r[0]}

@@ -119,6 +119,19 @@ npm start
 
 Open http://localhost:3000 for the landing page, then click **Try the demo** and **Or run the whole demo with sample data** (the app itself is at http://localhost:3000/app). With no AI model configured, Medivault reads documents with a built-in parser and writes recommendations with built-in rules, and the **Use demo data** buttons load a fictional patient's EHR record and pharmacy claims without signing in. Uploading your own text-based PDF also works in this mode.
 
+### Presenter shortcuts
+
+Each link resets the demo, loads the sample data and jumps straight to a step (also listed under "Presenter shortcuts" on the Upload page):
+
+| Link | Shows |
+|---|---|
+| http://localhost:3000/app?demo=review | Review page with the sample report, demo EHR and pharmacy claims loaded |
+| http://localhost:3000/app?demo=recommendations | Recommendations with the Act now / Soon / Routine tabs |
+| http://localhost:3000/app?demo=followup | Follow-up agent when the new results **need** a specialist (A1c 8.9%, rising) |
+| http://localhost:3000/app?demo=normal | Follow-up agent when the new results are **normal** (A1c 6.8%): it explains why and does nothing |
+
+The Upload page also has two sample reports: **Results that need follow-up** and **Normal results**. Uploading a file with no lab results is rejected with a clear message.
+
 ## Setup
 
 Requires Node.js 20 or newer.

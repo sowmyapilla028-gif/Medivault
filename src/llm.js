@@ -152,7 +152,15 @@ async function pdfToText(buffer) {
   }
 }
 
-export async function extractDocument({ buffer, mimetype, filename }) {
+const NOTHING_FOUND = "We didn't find any lab results or health information in this file. Upload a lab report or visit summary.";
+const ensureMedical = (doc) => {
+  if (!doc.results?.length && !doc.diagnoses?.length && !doc.medications?.length) throw new LlmError(NOTHING_FOUND, 422);
+  return doc;
+};
+
+export async function extractDocument(args) { return ensureMedical(await readDocument(args)); }
+
+async function readDocument({ buffer, mimetype, filename }) {
   const isText = mimetype.startsWith("text/") || mimetype === "application/json";
   if (mimetype !== "application/pdf" && !IMAGE_TYPES.has(mimetype) && !isText) {
     throw new LlmError(`Unsupported file type ${mimetype}. Upload a PDF, image or text file.`, 415);

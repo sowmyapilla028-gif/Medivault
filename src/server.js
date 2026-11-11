@@ -72,8 +72,9 @@ export function createApp({ fetchImpl = fetch } = {}) {
     res.json({ name: req.file.originalname, ...doc });
   }));
   app.post("/api/document/sample", wrap(async (req, res) => {
-    const name = "sample-lab-report-demo.txt";
-    const doc = await extractDocument({ buffer: Buffer.from(sampleReportText()), mimetype: "text/plain", filename: name });
+    const kind = req.query.kind === "normal" ? "normal" : "followup";
+    const name = kind === "normal" ? "sample-lab-report-normal.txt" : "sample-lab-report.txt";
+    const doc = await extractDocument({ buffer: Buffer.from(sampleReportText(kind)), mimetype: "text/plain", filename: name });
     req.session.document = doc; req.session.documentName = name; req.session.recommendations = null;
     res.json({ name, ...doc });
   }));
@@ -198,13 +199,18 @@ export function createApp({ fetchImpl = fetch } = {}) {
   };
   const pace = req0 => (ms) => new Promise((r) => setTimeout(r, req0.query.fast ? 0 : ms));
 
-  async function stream(req, res, gen) {
+  async function stream(req, res, gen, persist = false) {
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
     res.flushHeaders?.();
     let closed = false;
     req.on("close", () => { closed = true; });
     try {
-      for await (const ev of gen) { if (!closed) res.write(`data: ${JSON.stringify(ev)}\n\n`); }
+      // Keep running if the browser disconnects (e.g. a refresh mid-booking) and save progress as we go,
+      // so a reloaded page can pick up where the agent is.
+      for await (const ev of gen) {
+        if (!closed) res.write(`data: ${JSON.stringify(ev)}\n\n`);
+        if (persist) await new Promise((r) => req.session.save(r));
+      }
     } catch (err) {
       if (!closed) res.write(`data: ${JSON.stringify({ type: "error", error: err.message })}\n\n`);
     }
@@ -230,12 +236,13 @@ export function createApp({ fetchImpl = fetch } = {}) {
     const state = agentState(req);
     const gen = (async function* () {
       if (!state) throw new Error("Run the follow-up agent first.");
+      if (state.status === "booking" || state.status === "booked") throw Object.assign(new Error("That time is no longer available. Run the agent again."), { status: 409 });
       const it = book({ state, slotId: String(req.query.slot || ""), record: currentRecord(req), patientEmail: process.env.PATIENT_EMAIL, wait: pace(req) });
       let r;
       while (!(r = await it.next()).done) yield r.value;
       req.session.agent = { ...r.value, key: recordKey(req) };
     })();
-    return stream(req, res, gen);
+    return stream(req, res, gen, true);
   });
 
   app.get("/api/agent/appointment.ics", (req, res) => {

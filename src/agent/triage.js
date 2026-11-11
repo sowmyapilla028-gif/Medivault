@@ -1,3 +1,4 @@
+import { humanizeText as H } from "../dates.js";
 // Decides whether the newly uploaded results, read together with the patient's history,
 // call for a specialist follow-up. The trigger must come from the uploaded document;
 // history is used for trends and supporting context. Thresholds are demo heuristics,
@@ -97,7 +98,16 @@ export function triage(record, document) {
   const found = [endocrinology(record), nephrology(record), lipids(record)].filter(Boolean)
     .sort((a, b) => a.windowDays[1] - b.windowDays[1]);
   if (!found.length) {
-    return { needed: false, reason: "None of your newly uploaded results, read with your history, call for a specialist visit. Keep following your regular care plan.", checked, primary: null, others: [] };
+    const watch = [["a1c", "A1c", "%", (v) => (v < 7.5 ? "within the agent's limits" : "below the referral threshold")],
+      ["egfr", "eGFR", "", () => "above the referral threshold"], ["uacr", "Urine albumin", " mg/g", () => "below the referral threshold"],
+      ["ldl", "LDL cholesterol", " mg/dL", () => "below the referral threshold"]];
+    const reviewed = watch.map(([k, name, unit, note]) => {
+      const d = fromDoc(record.series, k); if (!d) return null;
+      const prev = priorHistory(record.series, k, d.date);
+      return { name, value: `${d.value}${unit}`, previous: prev ? `${prev.value}${unit}` : null, note: note(d.value) };
+    }).filter(Boolean);
+    return { needed: false, reason: "None of your newly uploaded results, read with your history, call for a specialist visit. Keep following your regular care plan.", checked, reviewed, primary: null, others: [] };
   }
+  for (const f of found) { f.reason = H(f.reason); f.questions = f.questions.map(H); f.evidence = f.evidence.map((e) => ({ ...e, detail: H(e.detail) })); }
   return { needed: true, primary: found[0], others: found.slice(1), checked, sourceLabels: label };
 }

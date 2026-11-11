@@ -2,6 +2,7 @@
 // The calendar and clinics are simulated for the demo; the shapes follow FHIR Slot/Appointment so a real
 // scheduling API can replace them.
 import crypto from "node:crypto";
+import { humanizeText as H } from "../dates.js";
 
 const hash = (s) => crypto.createHash("sha256").update(s).digest().readUInt32BE(0);
 const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -111,7 +112,7 @@ export function buildEmails({ patient, patientEmail, clinic, followUp, slot, con
   const srcName = { document: "uploaded lab report", epic: "health record", cms: "pharmacy claims" };
   const evidenceLines = followUp.evidence.map((e) => `- ${e.detail} (${srcName[e.source] || e.source})`).join("\n");
   const others = triage.others?.length ? `\nAlso worth raising: ${triage.others.map((o) => `${o.specialty} (${o.criterion.toLowerCase()})`).join("; ")}.\n` : "";
-  const meds = record.medications.filter((m) => !m.oneTime).map((m) => `- ${m.label}: last filled ${m.lastFill}, ${m.status === "lapsed" ? `ran out ${m.daysWithoutSupply} days ago` : "supply current"}`).join("\n");
+  const meds = record.medications.filter((m) => !m.oneTime).map((m) => H(`- ${m.label}: last filled ${m.lastFill}, ${m.status === "lapsed" ? `ran out ${m.daysWithoutSupply} days ago` : "supply current"}`)).join("\n");
   return [
     {
       id: "to-patient", to: patientEmail || `${patient.name} (your inbox)`, from: "Medivault care agent <agent@medivault.example>",

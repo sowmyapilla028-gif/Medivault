@@ -1,3 +1,4 @@
+import { humanizeText as H } from "./dates.js";
 // Built-in fallback used when no AI model is configured: a text parser for lab reports and
 // rule-based recommendations over the combined record. Output matches the AI schemas exactly.
 
@@ -174,9 +175,10 @@ export function localRecommendations(record, document) {
   if (a1c) questions.push("What should my A1c goal be, and when should we recheck it?");
   questions.push("Which of these should we handle first?");
   const high = recs.filter((r) => r.priority === "high").length;
+  for (const r of recs) { r.why = H(r.why); r.action = H(r.action); r.evidence = r.evidence.map((e) => ({ ...e, detail: H(e.detail) })); }
   return {
-    headline: recs.length ? `We found ${recs.length} thing${recs.length > 1 ? "s" : ""} to review${high ? `, ${high} that need attention soon` : ""}.` : "Nothing in the combined record needs attention right now.",
+    headline: recs.length ? `We found ${recs.length} thing${recs.length > 1 ? "s" : ""} to review${high ? `, ${high} to act on now` : ""}.` : "Nothing in the combined record needs attention right now.",
     overview: `Built-in rules compared your uploaded document with ${record.counts.epic} health record items and ${record.counts.cms} pharmacy claims. Connect an AI model for a written review.`,
-    recommendations: recs, questionsForDoctor: questions, dataGaps: gaps,
+    recommendations: recs, questionsForDoctor: questions.map(H), dataGaps: gaps.map(H),
   };
 }

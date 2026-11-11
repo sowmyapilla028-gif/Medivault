@@ -369,6 +369,13 @@ h1, h2, h3, .brand { letter-spacing: -0.03em; }
 .rec.done .rec-body { border-left-color: var(--ok); }
 .rec.done .sev { background: var(--ok-bg); color: var(--ok); }
 .rec.flash { box-shadow: 0 0 0 3px var(--lime); }
+
+.sample-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; }
+.presenter { text-align: left; background: var(--surface); border: 1px dashed var(--line); border-radius: 14px; padding: 10px 14px; font-size: .88rem; }
+.presenter summary { cursor: pointer; font-weight: 600; }
+.presenter-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.presenter-links a { color: var(--ink); background: var(--sunk); border-radius: 999px; padding: 5px 12px; text-decoration: none; font-weight: 500; }
+.presenter-links a:hover { background: var(--lime); }
 </style>
 </head>
 <body>
@@ -391,7 +398,7 @@ h1, h2, h3, .brand { letter-spacing: -0.03em; }
     <section class="view" id="view-upload" aria-labelledby="upTitle">
       <div class="upload-hero">
         <h1 id="upTitle">Start with your latest health document</h1>
-        <p class="lede">Upload a lab report or visit summary. AI reads it, then we pull in your health record and your Medicare pharmacy claims so the recommendations see the whole picture.</p>
+        <p class="lede">Upload a lab report or visit summary. We read it, then pull in your health record and your Medicare pharmacy claims so the recommendations see the whole picture.</p>
         <div class="dropzone" id="drop">
           <div class="doc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg></div>
           <div id="dropIdle" style="display:grid;gap:12px;justify-items:center">
@@ -400,13 +407,27 @@ h1, h2, h3, .brand { letter-spacing: -0.03em; }
             <div class="row">
               <label class="btn" for="fileIn">Choose file</label>
               <input id="fileIn" type="file" accept=".pdf,.txt,.json,image/jpeg,image/png,image/webp" hidden>
-              <button class="btn quiet" id="sampleDoc" type="button">Try a sample lab report</button>
+            </div>
+            <div class="sample-row">
+              <span class="empty-note">No file handy? Try a sample report:</span>
+              <button class="btn quiet sm" id="sampleDoc" type="button">Results that need follow-up</button>
+              <button class="btn quiet sm" id="sampleNormal" type="button">Normal results</button>
             </div>
             <button class="linkish" id="fullDemo" type="button">Or run the whole demo with sample data</button>
           </div>
           <div class="reading" id="dropBusy" hidden><span class="spinner"></span><span id="dropBusyText">Reading your document…</span></div>
           <p class="upload-error" id="dropErr" hidden></p>
         </div>
+        <details class="presenter">
+          <summary>Presenter shortcuts</summary>
+          <p class="empty-note">Each link resets the demo, loads sample data and jumps to a step.</p>
+          <div class="presenter-links">
+            <a href="/app?demo=review">Review (sample loaded)</a>
+            <a href="/app?demo=recommendations">Recommendations</a>
+            <a href="/app?demo=followup">Follow-up agent: needs a specialist</a>
+            <a href="/app?demo=normal">Follow-up agent: normal results</a>
+          </div>
+        </details>
         <div class="next-steps">
           <div><b>Review</b>Check what was read and connect your health record and Medicare.</div>
           <div><b>Combine</b>Your document, clinical record and pharmacy fills are matched to you.</div>
@@ -513,6 +534,9 @@ const TICK = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--surface)" strok
 const TICK_OK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
 const ARROW = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
 const SRC = { document: "Your upload", epic: "EHR", cms: "CMS pharmacy" };
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const nice = (t) => String(t ?? "").replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_, y, m, d) => `${MON[+m - 1]} ${+d}, ${y}`);
+const escN = (t) => esc(nice(t));
 const ehrLabel = () => (state.status?.sources.epic.demo ? "Demo EHR" : state.status?.sources.epic.label || "EHR");
 const llmName = () => state.status?.llmLabel || "AI";
 const hasLlm = () => !!state.status?.llmConfigured;
@@ -541,11 +565,12 @@ function banner(msg, kind = "err") {
 }
 
 function go(view, push = true) {
+  const requested = view;
   if (view === "review" && !canReview()) view = "upload";
   if ((view === "recommendations" || view === "followup") && !canRecs()) view = canReview() ? "review" : "upload";
   state.view = view;
   for (const v of VIEWS) $("view-" + v).hidden = v !== view;
-  if (push && location.hash !== "#" + view) history.replaceState(null, "", location.pathname + "#" + view);
+  if ((push || requested !== view) && location.hash !== "#" + view) history.replaceState(null, "", location.pathname + "#" + view);
   renderStepper();
   if (view === "review") renderReview();
   if (view === "recommendations") loadRecs(false);
@@ -585,7 +610,7 @@ function docCard() {
   const results = d.results || [];
   return `<div class="card-head"><div class="who"><span class="logo upload">DOC</span><div><h2>Your document</h2>
       <p class="sub">${esc(d.name)} · ${esc(d.documentType)}${d.documentDate ? " · " + fmt(d.documentDate) : ""}${d.patientName ? " · " + esc(d.patientName) : ""}</p></div></div>
-      <span class="status on"><span class="dot"></span>${results.length} result${results.length === 1 ? "" : "s"} read by ${esc(llmName())}</span></div>
+      <span class="status on"><span class="dot"></span>${results.length} result${results.length === 1 ? "" : "s"} read by ${esc(hasLlm() ? llmName() : "the built-in reader")}</span></div>
     <p style="font-size:.92rem">${esc(d.summary)}</p>
     ${results.length ? `<div class="values">${results.map((r) => `<div class="value"><span class="name">${esc(r.name)}</span>
       <span class="num">${esc(r.valueText || (r.value ?? "—"))}<small>${esc(r.unit || "")}</small></span>
@@ -702,18 +727,18 @@ function renderRecs() {
   const recs = r.recommendations || [];
   const n = (p) => recs.filter((x) => x.priority === p).length;
   $("rcTitle").textContent = r.headline;
-  $("rcLede").textContent = r.overview;
+  $("rcLede").textContent = nice(r.overview);
   if (!["all", "high", "medium", "low"].includes(state.recFilter)) state.recFilter = "all";
   $("tally").innerHTML = [["all", "", recs.length, "all"], ["high", "high", n("high"), "act now"], ["medium", "med", n("medium"), "soon"], ["low", "low", n("low"), "routine"]]
     .map(([k, cls, c, l]) => `<button type="button" role="tab" class="tab-chip ${cls}" data-filter="${k}" aria-selected="${state.recFilter === k}" ${c ? "" : "disabled"}><b>${c}</b> ${l}</button>`).join("");
   const srcs = ["document", "epic", "cms"].filter((s) => rec.counts[s] > 0);
   $("srcRow").innerHTML = "Sources: " + srcs.map((s) => `<span class="tag ${s}">${SRC[s]}</span> <span>${rec.counts[s]} item${rec.counts[s] === 1 ? "" : "s"}</span>`).join(" ");
-  $("gaps").innerHTML = r.dataGaps?.length ? `<div class="warn-box"><b>Before you read these:</b><ul class="qlist" style="margin-top:6px">${r.dataGaps.map((g) => `<li>${esc(g)}</li>`).join("")}</ul></div>` : "";
+  $("gaps").innerHTML = r.dataGaps?.length ? `<div class="warn-box"><b>Before you read these:</b><ul class="qlist" style="margin-top:6px">${r.dataGaps.map((g) => `<li>${escN(g)}</li>`).join("")}</ul></div>` : "";
   renderRecCol();
   renderTrend(rec); renderRx(rec);
   renderFuAlert();
   $("qCard").hidden = !r.questionsForDoctor?.length;
-  $("qCard").innerHTML = `<h3>Questions for your doctor</h3><ol class="qlist">${(r.questionsForDoctor || []).map((q) => `<li>${esc(q)}</li>`).join("")}</ol>`;
+  $("qCard").innerHTML = `<h3>Questions for your doctor</h3><ol class="qlist">${(r.questionsForDoctor || []).map((q) => `<li>${escN(q)}</li>`).join("")}</ol>`;
   const anyDemo = state.status?.sources.epic.demo || state.status?.sources.cms.demo;
   $("genNote").textContent = `Generated by ${hasLlm() ? llmName() : "built-in rules"} on ${new Date(r.generatedAt).toLocaleString()} from ${anyDemo ? "demo data" : `live ${ehrLabel()} and CMS data`} plus your upload. Not medical advice.`;
 }
@@ -738,15 +763,15 @@ function recCard(x, done) {
   const p = PRI[x.priority], used = [...new Set(x.evidence.map((e) => e.source))], k = recKey(x), spec = specialistFor(x);
   return `<article class="rec ${p.cls}${done ? " done" : ""}" id="rec-${k}"><div class="rec-body">
     <div class="rec-top"><h3>${esc(x.title)}</h3><span class="sev ${p.cls}">${done ? "Done" : p.label}</span></div>
-    <div class="rec-section"><span class="rec-label">What we found</span><p class="rec-why">${esc(x.why)}</p></div>
-    <div class="rec-do">${ARROW}<span><span class="rec-label">What to do</span>${esc(x.action)}</span></div>
+    <div class="rec-section"><span class="rec-label">What we found</span><p class="rec-why">${escN(x.why)}</p></div>
+    <div class="rec-do">${ARROW}<span><span class="rec-label">What to do</span>${escN(x.action)}</span></div>
     <div class="rec-meta"><span><span class="rec-label">When</span>${p.when}</span>${spec ? `<span><span class="rec-label">Who</span>${esc(spec.specialistTitle)}, within ${spec.windowDays[0]}–${spec.windowDays[1]} days</span>` : ""}</div>
     <div class="rec-actions">
       ${spec && !done ? `<button class="btn sm" type="button" data-go="followup">Let the agent book it</button>` : ""}
       <button class="btn ${done ? "quiet" : "ghost"} sm" type="button" data-done="${k}">${done ? "Undo" : "Mark as done"}</button>
     </div></div>
     <details ${x.priority === "high" && !done ? "open" : ""}><summary>How we know ${used.map((s) => `<span class="tag ${s}">${SRC[s]}</span>`).join("")}</summary>
-    <ul class="evidence">${x.evidence.map((e) => `<li><span class="tag ${e.source}">${SRC[e.source]}</span><span>${esc(e.detail)}</span></li>`).join("")}</ul></details></article>`;
+    <ul class="evidence">${x.evidence.map((e) => `<li><span class="tag ${e.source}">${SRC[e.source]}</span><span>${escN(e.detail)}</span></li>`).join("")}</ul></details></article>`;
 }
 
 function renderRecCol() {
@@ -761,7 +786,7 @@ function renderRecCol() {
     html += `<div class="plan ${p.cls}"><div class="plan-head"><div><h2>${p.label} <span class="plan-count">${left ? `${left} of ${list.length} to do` : "All done"}</span></h2><p>${p.when}. ${p.lede}</p></div></div>
       <ol class="plan-list">${list.map((x) => { const k = recKey(x), d = done.has(k);
         return `<li class="${d ? "done" : ""}"><button class="check" type="button" data-done="${k}" aria-label="${d ? "Mark not done" : "Mark done"}: ${esc(x.title)}" aria-pressed="${d}">${d ? TICK : ""}</button>
-          <div><a href="#rec-${k}" data-jump="${k}" class="plan-title">${esc(x.title)}</a><span class="plan-do">${esc(x.action)}</span></div></li>`; }).join("")}</ol></div>`;
+          <div><a href="#rec-${k}" data-jump="${k}" class="plan-title">${esc(x.title)}</a><span class="plan-do">${escN(x.action)}</span></div></li>`; }).join("")}</ol></div>`;
     html += list.map((x) => recCard(x, done.has(recKey(x)))).join("");
   }
   $("recCol").innerHTML = html;
@@ -855,7 +880,8 @@ function renderTop() {
   if (!t) { $("fuTop").innerHTML = ""; return; }
   if (!t.needed) {
     $("fuTop").innerHTML = `<div class="card"><h2 style="font-size:1.1rem">No specialist follow-up needed</h2><p>${esc(t.reason)}</p>
-      <p class="empty-note">What the agent checked in your new results:</p><ul class="qlist">${t.checked.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
+      ${t.reviewed?.length ? `<div class="values" style="margin-top:6px">${t.reviewed.map((r) => `<div class="value"><span class="name">${esc(r.name)}</span><span class="num">${esc(r.value)}</span><span class="name">${r.previous ? `Was ${esc(r.previous)} · ` : ""}${esc(r.note)}</span></div>`).join("")}</div>` : ""}
+      <p class="empty-note">Referral rules the agent checked:</p><ul class="qlist">${t.checked.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
       <p class="empty-note">No calendar was checked, no call was made and no emails were sent.</p></div>`;
     return;
   }
@@ -948,10 +974,18 @@ function streamAgent(url) {
   };
   es.onerror = () => { es.close(); };
 }
+async function pollBooking() {
+  clearTimeout(fu.poll);
+  if (state.view !== "followup") return;
+  try { fu.state = await api("/api/agent"); } catch { return; }
+  renderFu();
+  if (fu.state?.status === "booking") fu.poll = setTimeout(pollBooking, 800);
+}
 async function openFollowup(rerun) {
   if (!rerun) {
     try { fu.state = await api("/api/agent"); } catch { fu.state = null; }
-    if (fu.state && fu.state.status !== "planning" && fu.state.status !== "booking") { renderFu(); return; }
+    if (fu.state?.status === "booking") { renderFu(); pollBooking(); return; }
+    if (fu.state && fu.state.status !== "planning") { renderFu(); return; }
   }
   fu.state = { steps: [] }; fu.mail = 0; renderFu();
   streamAgent("/api/agent/run");
@@ -988,11 +1022,24 @@ drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.ad
 drop.addEventListener("dragleave", () => drop.classList.remove("over"));
 drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); });
 $("toRecs").onclick = () => go("recommendations");
-$("sampleDoc").onclick = async () => {
+async function loadSample(kind) {
   dropBusy(true, "Reading the sample lab report…");
-  try { await api("/api/document/sample", { method: "POST" }); await refreshStatus(); state.recs = null; dropBusy(false); go("review"); }
+  try { await api(`/api/document/sample?kind=${kind}`, { method: "POST" }); await refreshStatus(); state.recs = null; fu.state = null; dropBusy(false); go("review"); }
   catch (e) { dropError(e.message); }
-};
+}
+$("sampleDoc").onclick = () => loadSample("followup");
+$("sampleNormal").onclick = () => loadSample("normal");
+
+// Presenter shortcuts: /app?demo=review|recommendations|followup|normal
+async function presenterDemo(target) {
+  await api("/api/reset", { method: "POST" });
+  Object.assign(state, { epic: null, cms: null, record: null, recs: null }); fu.state = null;
+  await api(`/api/document/sample?kind=${target === "normal" ? "normal" : "followup"}`, { method: "POST" });
+  await api("/api/demo/epic", { method: "POST" });
+  await api("/api/demo/cms", { method: "POST" });
+  await refreshStatus();
+  go(target === "normal" ? "followup" : target);
+}
 $("fullDemo").onclick = async () => {
   dropBusy(true, "Loading the demo…");
   try {
@@ -1008,7 +1055,7 @@ $("regen").onclick = () => loadRecs(true);
 $("toFollowup").onclick = () => go("followup");
 $("backRecs").onclick = () => go("recommendations");
 $("rerunAgent").onclick = () => openFollowup(true);
-$("resetBtn").onclick = async () => { await api("/api/reset", { method: "POST" }); fu.es?.close(); fu.state = null; Object.assign(state, { epic: null, cms: null, record: null, recs: null }); await refreshStatus(); go("upload"); };
+$("resetBtn").onclick = async () => { await api("/api/reset", { method: "POST" }); fu.es?.close(); clearTimeout(fu.poll); fu.state = null; Object.assign(state, { epic: null, cms: null, record: null, recs: null }); await refreshStatus(); go("upload"); };
 
 (async () => {
   const params = new URLSearchParams(location.search);
@@ -1016,6 +1063,12 @@ $("resetBtn").onclick = async () => { await api("/api/reset", { method: "POST" }
   try { await refreshStatus(); } catch (e) { banner("Can't reach the Medivault server. Is it running?"); }
   if (state.status) SRC.epic = ehrLabel();
   if (state.status && !state.status.llmConfigured) banner("Demo mode: no AI model is configured, so documents are read by a built-in parser and recommendations come from built-in rules. Add LLM_API_KEY and LLM_MODEL to .env for AI.", "info");
+  const demo = params.get("demo");
+  if (demo && ["review", "recommendations", "followup", "normal"].includes(demo)) {
+    history.replaceState(null, "", location.pathname);
+    try { await presenterDemo(demo); } catch (e) { banner(e.message); go("upload"); }
+    return;
+  }
   const start = location.hash.slice(1);
   go(VIEWS.includes(start) ? start : "upload", false);
 })();
