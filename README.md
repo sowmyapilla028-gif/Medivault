@@ -13,10 +13,10 @@ No demo data is built in. Everything shown comes from the uploaded file and the 
 ## How it works
 
 ```
-browser ──upload──▶ /api/document ──PDF/image──▶ Claude (structured output) ──▶ results
+browser ──upload──▶ /api/document ──PDF/image──▶ AI model (JSON) ──▶ results
 browser ──connect─▶ /auth/{epic|cms}/start ──OAuth 2 + PKCE──▶ provider sign-in ──▶ /auth/{source}/callback
                                                      server fetches FHIR with the access token
-browser ──────────▶ /api/recommendations: record + computed trends/refill gaps ──▶ Claude ──▶ recommendations
+browser ──────────▶ /api/recommendations: record + computed trends/refill gaps ──▶ AI model ──▶ recommendations
 ```
 
 - Access tokens stay on the server (in the session); the browser only gets a session cookie.
