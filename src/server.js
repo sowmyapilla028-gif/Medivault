@@ -14,6 +14,7 @@ import { demoCms, demoEhr, sampleReportText } from "./demo-data.js";
 import { book, patientFrom, plan } from "./agent/agent.js";
 import { triage } from "./agent/triage.js";
 import { toIcs } from "./agent/scheduling.js";
+import { newPrivacyState } from "./privacy.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FETCHERS = { epic: fetchEpic, cms: fetchCms };
@@ -36,6 +37,19 @@ export function createApp({ fetchImpl = fetch } = {}) {
 
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 1 } });
   const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+  // Per-session privacy key and date offset; reports of what was (or would be) sent to the AI.
+  const privacyFor = (req, stage) => {
+    req.session.privacy ||= newPrivacyState();
+    const s = req.session.sources || {}, d = req.session.document;
+    return {
+      state: req.session.privacy, secret,
+      known: {
+        names: [s.epic?.data?.patient?.name, s.cms?.data?.patient?.name, d?.patientName],
+        birthDates: [s.epic?.data?.patient?.birthDate, s.cms?.data?.patient?.birthDate, d?.birthDate],
+      },
+      onReport: (r) => { req.session.privacyReports = { ...(req.session.privacyReports || {}), [stage]: r }; },
+    };
+  };
   const sourceParam = (req, res) => {
     const id = req.params.source;
     if (!config.sources[id]) { res.status(404).json({ error: "Unknown source" }); return null; }
@@ -65,7 +79,7 @@ export function createApp({ fetchImpl = fetch } = {}) {
   app.post("/api/document", upload.single("file"), wrap(async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "Attach a file in the 'file' field." });
     const mimetype = req.file.mimetype === "application/octet-stream" && /\.pdf$/i.test(req.file.originalname) ? "application/pdf" : req.file.mimetype;
-    const doc = await extractDocument({ buffer: req.file.buffer, mimetype, filename: req.file.originalname });
+    const doc = await extractDocument({ buffer: req.file.buffer, mimetype, filename: req.file.originalname, privacy: privacyFor(req, "document") });
     req.session.document = doc;
     req.session.documentName = req.file.originalname;
     req.session.recommendations = null;
@@ -74,7 +88,7 @@ export function createApp({ fetchImpl = fetch } = {}) {
   app.post("/api/document/sample", wrap(async (req, res) => {
     const kind = req.query.kind === "normal" ? "normal" : "followup";
     const name = kind === "normal" ? "sample-lab-report-normal.txt" : "sample-lab-report.txt";
-    const doc = await extractDocument({ buffer: Buffer.from(sampleReportText(kind)), mimetype: "text/plain", filename: name });
+    const doc = await extractDocument({ buffer: Buffer.from(sampleReportText(kind)), mimetype: "text/plain", filename: name, privacy: privacyFor(req, "document") });
     req.session.document = doc; req.session.documentName = name; req.session.recommendations = null;
     res.json({ name, ...doc });
   }));
@@ -175,6 +189,7 @@ export function createApp({ fetchImpl = fetch } = {}) {
   });
 
   app.get("/api/record", (req, res) => res.json(currentRecord(req)));
+  app.get("/api/privacy", (req, res) => res.json({ llmConfigured: llmConfigured(), reports: req.session.privacyReports || {} }));
 
   app.post("/api/recommendations", wrap(async (req, res) => {
     const s = req.session.sources || {};
@@ -183,7 +198,7 @@ export function createApp({ fetchImpl = fetch } = {}) {
     }
     if (req.session.recommendations && !req.body?.regenerate) return res.json(req.session.recommendations);
     const record = currentRecord(req);
-    const result = await generateRecommendations(record, req.session.document);
+    const result = await generateRecommendations(record, req.session.document, privacyFor(req, "recommendations"));
     req.session.recommendations = { generatedAt: new Date().toISOString(), record, ...result };
     res.json(req.session.recommendations);
   }));

@@ -53,14 +53,25 @@ test("OpenAI-compatible LLM + generic SMART EHR", async () => {
   assert.equal(status.sources.epic.label, "SMART Health IT");
 
   const fd = new FormData();
-  fd.append("file", new Blob([makePdf(["NORTHSIDE LAB", "Patient: Camila Lopez", "Hemoglobin A1c 8.9 % H"])], { type: "application/pdf" }), "labs.pdf");
+  fd.append("file", new Blob([makePdf(["NORTHSIDE LAB", "Patient: Camila Lopez   DOB: 09/12/1987   MRN: A99812345", "Phone: (555) 014-2290", "Collected: 11/03/2026", "Hemoglobin A1c 8.9 % H"])], { type: "application/pdf" }), "labs.pdf");
   const up = await call("/api/document", { method: "POST", body: fd });
   assert.equal(up.status, 200, await up.clone().text());
-  assert.equal((await up.json()).results[0].value, 8.9);
+  const doc = await up.json();
+  assert.equal(doc.results[0].value, 8.9);
   const docReq = mocks.seen.chatRequests[0];
   assert.equal(docReq.body.model, "test-model");
   assert.deepEqual(docReq.body.response_format, { type: "json_object" });
-  assert.match(docReq.body.messages[1].content, /Hemoglobin A1c 8\.9 % H/, "PDF text was extracted locally and sent");
+  const sent = JSON.stringify(docReq.body);
+  assert.match(sent, /Hemoglobin A1c 8\.9 % H/, "clinical values are still sent");
+  for (const pii of ["Camila", "Lopez", "09/12/1987", "1987", "A99812345", "014-2290", "11/03/2026", "2026-11-03"]) assert.ok(!sent.includes(pii), `PII leaked to the model: ${pii}`);
+  assert.match(sent, /\[PATIENT_[0-9a-f]{6}\]/);
+  // The server maps the model's tokens and shifted dates back to the real values.
+  assert.equal(doc.patientName, "Camila Lopez");
+  assert.equal(doc.birthDate, "1987-09-12");
+  assert.equal(doc.documentDate, "2026-11-03");
+  const priv = await (await call("/api/privacy")).json();
+  assert.equal(priv.reports.document.sentToAI, true);
+  assert.ok(priv.reports.document.replaced.PATIENT >= 1 && priv.reports.document.replaced.DOB >= 1 && priv.reports.document.replaced.PHONE >= 1);
 
   // EHR sign-in: no category filter on Condition for non-Epic servers
   const start = await call("/auth/epic/start");
@@ -76,6 +87,9 @@ test("OpenAI-compatible LLM + generic SMART EHR", async () => {
   assert.equal(recs.headline, "A1c rising.");
   const last = mocks.seen.chatRequests.at(-1).body.messages;
   assert.match(last.at(-1).content, /Reply again with only the corrected JSON/);
+  const recSent = JSON.stringify(mocks.seen.chatRequests.at(-1).body);
+  for (const pii of ["Camila", "Lopez", "1987-09-12", "2026-02-10", "2026-08-04", "2026-11-03"]) assert.ok(!recSent.includes(pii), `PII leaked in recommendations prompt: ${pii}`);
+  assert.equal(recs.recommendations[0].evidence[0].detail, "A1c 8.9%; first A1c on 2026-02-10", "shifted dates are mapped back");
 });
 
 test("a scanned (text-less) PDF gets a clear message", async () => {

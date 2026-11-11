@@ -220,6 +220,56 @@ section { padding-block: 96px; }
 
 footer { padding-block: 40px 56px; color: var(--muted); font-size: .85rem; }
 footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; }
+
+/* ---------- Privacy flow ---------- */
+.feat.full { grid-column: 1 / -1; display: flex; align-items: center; gap: 28px; }
+@media (max-width: 640px) { .feat.full { flex-direction: column; align-items: flex-start; } }
+.privacy { background: var(--ink); color: var(--cream); border-radius: 36px; padding: clamp(28px, 5vw, 56px); display: grid; gap: 34px; }
+.privacy-head { display: grid; gap: 12px; max-width: 760px; }
+.privacy-head h2 { font-size: clamp(2rem, 4.4vw, 3.3rem); line-height: 1.02; }
+.privacy-head p { color: #bdbcb4; font-size: 1.05rem; max-width: 64ch; }
+.eyebrow.light { color: var(--lime); }
+.flow { display: grid; grid-template-columns: minmax(0, 1fr) 30px minmax(0, 3.2fr) 72px minmax(0, 1fr) 72px minmax(0, 1fr); align-items: center; gap: 6px; }
+.node { background: #1d1d1b; border: 1px solid #34342f; border-radius: 18px; padding: 14px; display: grid; gap: 4px; min-width: 0; align-self: stretch; align-content: start; }
+.node b { font-family: var(--display); font-size: 1rem; letter-spacing: -0.02em; }
+.n-k { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #8f8e86; }
+.n-d { font-size: .8rem; color: #bdbcb4; line-height: 1.45; }
+.node code { display: inline-block; margin-top: 4px; font-size: .68rem; line-height: 1.5; background: rgba(201,243,107,.14); color: var(--lime); padding: 3px 6px; border-radius: 6px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.node.hl { border-color: var(--lime); }
+.node.ai { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.node.ai .n-k { color: var(--muted); } .node.ai .n-d { color: var(--ink-2); }
+.node.out { background: var(--lime); color: var(--ink); border-color: var(--lime); }
+.node.out .n-k { color: #4b5a1f; } .node.out .n-d { color: #2c3510; }
+.server { border: 1.5px dashed var(--lime); border-radius: 22px; padding: 30px 12px 12px; position: relative; align-self: stretch; display: grid; }
+.server-label { position: absolute; top: 8px; left: 14px; font-size: .74rem; font-weight: 600; color: var(--lime); }
+.steps-row { display: grid; grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr) 22px minmax(0, 1fr); gap: 4px; align-items: center; }
+.arrow { position: relative; height: 2px; background: #5a5a54; align-self: center; }
+.arrow::after { content: ""; position: absolute; right: -1px; top: -5px; border: 6px solid transparent; border-left: 8px solid #5a5a54; border-right: 0; }
+.arrow span { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 64px; text-align: center; line-height: 1.15; font-size: .64rem; font-weight: 600; color: var(--lime); }
+.arrow.back { background: var(--lime); } .arrow.back::after { border-left-color: var(--lime); }
+.arrow.sm span { display: none; }
+@media (max-width: 1020px) {
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .steps-row { grid-template-columns: minmax(0, 1fr); }
+  .arrow { width: 2px; height: 26px; justify-self: center; }
+  .arrow::after { right: -5px; top: auto; bottom: -2px; border: 6px solid transparent; border-top: 8px solid #5a5a54; border-bottom: 0; }
+  .arrow.back::after { border-top-color: var(--lime); border-left-color: transparent; }
+  .arrow span { bottom: auto; top: 50%; left: 14px; transform: translateY(-50%); width: max-content; }
+  .arrow.sm { height: 18px; }
+  .server { padding-top: 50px; }
+  .server-label { right: 14px; }
+}
+.compare { display: grid; grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 10px; align-items: center; }
+@media (max-width: 800px) { .compare { grid-template-columns: minmax(0, 1fr); } .pane-arrow { transform: rotate(90deg); justify-self: center; } }
+.pane { background: #1d1d1b; border: 1px solid #34342f; border-radius: 18px; padding: 16px; display: grid; gap: 8px; min-width: 0; }
+.pane.sent { border-color: var(--lime); }
+.pane-k { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #8f8e86; }
+.pane.sent .pane-k { color: var(--lime); }
+.pane pre { margin: 0; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: .8rem; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; color: #e6e5de; }
+.pane mark { background: rgba(201,243,107,.18); color: var(--lime); border-radius: 4px; padding: 0 3px; }
+.pane mark.pii { background: rgba(243,160,122,.2); color: #f6b799; }
+.pane-arrow { font-size: 1.6rem; color: var(--lime); text-align: center; }
+.stack.light span { background: rgba(255,255,255,.08); color: #e6e5de; }
 </style>
 </head>
 <body>
@@ -418,16 +468,78 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
           <p>An allergy recorded by one doctor, a prescription written by another, filled at a pharmacy that never heard about it.</p>
           <div class="alert"><span class="x">!</span><span><b>Penicillin allergy</b> vs. <b>amoxicillin</b> filled Mar 19</span></div>
         </article>
-        <article class="feat narrow lime">
+        <article class="feat lime full">
           <span class="big-num">1</span>
-          <h3>One view of you, across every source</h3>
-          <p>Names and birth dates are matched across sources, and anything that doesn't line up is flagged before you read a single recommendation.</p>
+          <div>
+            <h3>One view of you, across every source</h3>
+            <p>Names and birth dates are matched across sources, and anything that doesn't line up is flagged before you read a single recommendation.</p>
+          </div>
         </article>
-        <article class="feat wide" id="security">
-          <h3>Private by design</h3>
-          <p>Access tokens never reach your browser. Uploaded files are read and not stored. Each source is connected with its own consent screen, and you can disconnect it at any time.</p>
-          <div class="stack"><span>OAuth 2.0 + PKCE</span><span>Server-side tokens</span><span>Read-only scopes</span><span>No file storage</span><span>Disconnect anytime</span></div>
-        </article>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ================= PRIVACY FLOW ================= -->
+  <section id="security" style="padding-top:0">
+    <div class="wrap">
+      <div class="privacy">
+        <div class="privacy-head">
+          <span class="eyebrow light">Private by design</span>
+          <h2>The AI never sees who you are</h2>
+          <p>Before anything reaches an AI model, Medivault hashes every identifier and shifts every date on our server. The model reasons over lab values and medicines only. Your name comes back only after the answer returns.</p>
+        </div>
+
+        <div class="flow" role="img" aria-label="Data flow: your sources go to the Medivault server, which detects personal data, hashes identifiers and shifts dates. Only the de-identified record goes to the AI model. The answer comes back to the server, which restores names and dates before showing you the recommendations.">
+          <div class="node src">
+            <span class="n-k">Your data</span>
+            <b>Lab report · EHR · Pharmacy claims</b>
+            <span class="n-d">Names, birth dates, IDs, dates of service, lab values</span>
+          </div>
+          <div class="arrow" aria-hidden="true"></div>
+          <div class="server">
+            <span class="server-label">🔒 Medivault server · the key and token map never leave</span>
+            <div class="steps-row">
+              <div class="node"><span class="n-k">Step 1</span><b>Detect personal data</b><span class="n-d">Names, birth dates, MRNs, member IDs, phone, email, address</span></div>
+              <div class="arrow sm" aria-hidden="true"></div>
+              <div class="node hl"><span class="n-k">Step 2</span><b>Hash identifiers</b><span class="n-d">HMAC-SHA256 with a per-session key<br><code>Rosa Delgado →<br>[PATIENT_7f3a9c]</code></span></div>
+              <div class="arrow sm" aria-hidden="true"></div>
+              <div class="node hl"><span class="n-k">Step 3</span><b>Shift every date</b><span class="n-d">Hidden offset per session; gaps and trends stay exact</span></div>
+            </div>
+          </div>
+          <div class="arrow" aria-hidden="true"><span>De-identified only</span></div>
+          <div class="node ai">
+            <span class="n-k">AI model</span>
+            <b>Sees values, not people</b>
+            <span class="n-d">A1c 8.9%, metformin 30-day fills, penicillin allergy. No PII.</span>
+          </div>
+          <div class="arrow back" aria-hidden="true"><span>Answer with tokens</span></div>
+          <div class="node out">
+            <span class="n-k">Step 4 · on our server</span>
+            <b>Restore names and dates</b>
+            <span class="n-d">You see your recommendations with your real details</span>
+          </div>
+        </div>
+
+        <div class="compare">
+          <div class="pane">
+            <span class="pane-k">Stays on the server</span>
+<pre>Patient: <mark class="pii">Rosa Delgado</mark>   DOB: <mark class="pii">03/14/1958</mark>
+MRN: <mark class="pii">A99812345</mark>   Phone: <mark class="pii">(555) 014-2290</mark>
+Collected: <mark class="pii">11/03/2026</mark>
+Hemoglobin A1c    8.9 %   H</pre>
+          </div>
+          <div class="pane-arrow" aria-hidden="true">→</div>
+          <div class="pane sent">
+            <span class="pane-k">Sent to the AI</span>
+<pre>Patient: <mark>[PATIENT_7f3a9c]</mark>   DOB: <mark>[DOB_c91e04]</mark>
+MRN: <mark>[ID_4d2b17]</mark>   Phone: <mark>[PHONE_e08a51]</mark>
+Collected: <mark>2026-07-28</mark>
+Hemoglobin A1c    8.9 %   H</pre>
+          </div>
+        </div>
+
+        <div class="stack light"><span>HMAC-SHA256 pseudonyms</span><span>Per-session date shifting</span><span>Photos never sent unredacted</span><span>OAuth 2.0 + PKCE</span><span>Server-side tokens</span><span>Read-only scopes</span><span>No file storage</span><span>Disconnect anytime</span></div>
       </div>
     </div>
   </section>

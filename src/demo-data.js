@@ -59,7 +59,8 @@ export function demoCms() {
 export function sampleReportText(kind = "followup") {
   const d = sh("2026-11-03").split("-"), r = sh("2026-11-04").split("-");
   if (kind === "normal") return `NORTHSIDE COMMUNITY LAB - PATIENT COPY (DEMO)
-Patient: Rosa Delgado    DOB: 03/14/1958
+Patient: Rosa Delgado    DOB: 03/14/1958    MRN: NCL-0048211
+Phone: (555) 014-7781    Address: 418 Maple Avenue
 Collected: ${d[1]}/${d[2]}/${d[0]}    Reported: ${r[1]}/${r[2]}/${r[0]}
 
 TEST                         RESULT     FLAG   REFERENCE
@@ -70,7 +71,8 @@ eGFR                         70                > 59 mL/min/1.73m2
 
 Comment: A1c improved from prior result.`;
   return `NORTHSIDE COMMUNITY LAB - PATIENT COPY (DEMO)
-Patient: Rosa Delgado    DOB: 03/14/1958
+Patient: Rosa Delgado    DOB: 03/14/1958    MRN: NCL-0048211
+Phone: (555) 014-7781    Address: 418 Maple Avenue
 Collected: ${d[1]}/${d[2]}/${d[0]}    Reported: ${r[1]}/${r[2]}/${r[0]}
 
 TEST                         RESULT     FLAG   REFERENCE

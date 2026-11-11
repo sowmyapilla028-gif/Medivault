@@ -46,14 +46,14 @@ test("full journey: upload, connect Epic and CMS, recommendations", async () => 
 
   // 1. Upload a PDF -> sent to Claude as a document block
   const fd = new FormData();
-  fd.append("file", new Blob([Buffer.from("%PDF-1.4 test")], { type: "application/pdf" }), "labs.pdf");
+  fd.append("file", new Blob(["Patient: Camila Lopez   DOB: 09/12/1987\nCollected: 11/03/2026\nHemoglobin A1c 8.9 % H"], { type: "text/plain" }), "labs.txt");
   const up = await call("/api/document", { method: "POST", body: fd });
   assert.equal(up.status, 200);
   const doc = await up.json();
   assert.equal(doc.results[0].value, 8.9);
   const docReq = mocks.seen.claudeRequests.at(-1);
-  assert.equal(docReq.body.messages[0].content[0].type, "document");
-  assert.equal(docReq.body.messages[0].content[0].source.media_type, "application/pdf");
+  assert.equal(docReq.body.messages[0].content[0].type, "text", "documents are de-identified text, never the raw file");
+  assert.ok(!JSON.stringify(docReq.body).includes("Camila"), "no patient name sent to Claude");
   assert.equal(docReq.body.model, "claude-opus-5-5");
   assert.equal(docReq.body.fallbacks, "default");
   assert.equal(docReq.body.output_config.format.type, "json_schema");
@@ -94,9 +94,10 @@ test("full journey: upload, connect Epic and CMS, recommendations", async () => 
   assert.equal(recs.recommendations[0].priority, "high");
   const recReq = mocks.seen.claudeRequests.at(-1);
   const prompt = recReq.body.messages[0].content[0].text;
-  assert.match(prompt, /METFORMIN HCL 1000 MG TABLET: 2 fill\(s\), last 2026-06-01/);
-  assert.match(prompt, /a1c: 2026-02-10 7.4 \(epic\) -> 2026-08-04 8.1 \(epic\) -> 2026-11-03 8.9 \(document\)/);
-  assert.match(prompt, /"status":"mismatch"/);
+  assert.match(prompt, /METFORMIN HCL 1000 MG TABLET: 2 fill\(s\), last \d{4}-\d{2}-\d{2}/);
+  assert.match(prompt, /a1c: \d{4}-\d{2}-\d{2} 7.4 \(epic\) -> \d{4}-\d{2}-\d{2} 8.1 \(epic\) -> \d{4}-\d{2}-\d{2} 8.9 \(document\)/);
+  assert.doesNotMatch(prompt, /2026-02-10|2026-08-04|Camila|Jane Doe|1950-01-01/, "real dates and names are not sent");
+  assert.match(prompt, /"pharmacy":"mismatch"/);
   assert.equal(recReq.body.output_config.effort, "high");
   const before = mocks.seen.claudeRequests.length;
   await call("/api/recommendations", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });

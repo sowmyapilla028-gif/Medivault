@@ -34,3 +34,16 @@ test("normalizePde reads Blue Button drug, days supply and date", () => {
     supportingInfo: [{ category: { coding: [{ code: "dayssupply" }] }, valueQuantity: { value: 90 } }] });
   assert.deepEqual([f.label, f.daysSupply, f.date, f.quantity], ["LISINOPRIL 20 MG", 90, "2026-09-14", 90]);
 });
+
+import { PrivacyShield } from "../src/privacy.js";
+test("privacy shield: identifiers tokenized, dates shifted with intervals kept, answer mapped back", () => {
+  const s = new PrivacyShield({ salt: "x", shiftDays: -100 }, { names: ["Rosa Delgado"], birthDates: ["1958-03-14"] });
+  const out = s.redact("Patient: Rosa Delgado  DOB: 03/14/1958  MRN: A12345\nCall (555) 014-2290, rosa@example.com, 2140 Alder Street\nA1c 8.9 % on 2026-11-03; prior 2026-08-04. Delgado, Rosa reported missed doses.");
+  for (const pii of ["Rosa", "Delgado", "03/14/1958", "A12345", "014-2290", "rosa@example.com", "Alder", "2026-11-03", "2026-08-04"]) assert.ok(!out.includes(pii), pii);
+  assert.match(out, /A1c 8\.9 % on 2026-07-26; prior 2026-04-26/); // 91-day interval preserved
+  const tok = out.match(/\[PATIENT_[0-9a-f]{6}\]/)[0];
+  assert.equal(s.redact("Rosa Delgado").includes(tok), true, "same value -> same token");
+  assert.deepEqual(s.reidentify({ n: tok, d: "on 2026-07-26 and Apr 26, 2026" }), { n: "Rosa Delgado", d: "on 2026-11-03 and 2026-08-04" });
+  const r = s.report("t", out, true);
+  assert.ok(r.replaced.PATIENT >= 2 && r.replaced.DOB === 1 && r.replaced.ID === 1 && r.replaced.PHONE === 1 && r.replaced.EMAIL === 1 && r.replaced.ADDRESS === 1);
+});

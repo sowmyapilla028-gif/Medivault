@@ -96,14 +96,19 @@ export function startMocks() {
     let content;
     if (system.includes("Transcribe only what the document states")) {
       // Prose + fenced JSON: the server must still parse it.
-      content = "Here you go:\n```json\n" + JSON.stringify({ documentType: "Lab report", patientName: "Camila Lopez", birthDate: "1987-09-12", documentDate: "2026-11-03",
+      // Echo the tokens and (shifted) date the model was given, like a real model would.
+      const user = String(req.body.messages[1].content);
+      const docDate = (user.match(/Collected:\s*(\d{4}-\d{2}-\d{2})/) || [])[1] || null;
+      content = "Here you go:\n```json\n" + JSON.stringify({ documentType: "Lab report", patientName: (user.match(/\[PATIENT_\w+\]/) || [null])[0], birthDate: (user.match(/\[DOB_\w+\]/) || [null])[0], documentDate: docDate,
         results: [{ name: "Hemoglobin A1c", loinc: "4548-4", value: 8.9, valueText: null, unit: "%", flag: "high", referenceRange: "<5.7" }],
         diagnoses: [], medications: [], summary: "A1c is high." }) + "\n```";
     } else if (recAttempts++ === 0) {
       content = JSON.stringify({ headline: "Missing fields" }); // invalid on purpose -> server retries
     } else {
+      const user = String(req.body.messages[1].content);
+      const firstA1c = (user.match(/a1c: (\d{4}-\d{2}-\d{2})/) || [])[1];
       content = JSON.stringify({ headline: "A1c rising.", overview: "Combined.", recommendations: [{ title: "Talk about metformin", priority: "high", why: "w", action: "a",
-        evidence: [{ source: "document", detail: "A1c 8.9%" }] }], questionsForDoctor: [], dataGaps: [] });
+        evidence: [{ source: "document", detail: `A1c 8.9%; first A1c on ${firstA1c}` }] }], questionsForDoctor: [], dataGaps: [] });
     }
     res.json({ id: "c1", object: "chat.completion", choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content } }] });
   });

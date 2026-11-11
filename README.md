@@ -42,6 +42,19 @@ Medivault walks the patient through four steps:
 
 The demo patient in the screenshots is fictional (demo data mode).
 
+## Private by design
+
+Nothing that identifies the patient is sent to an AI model. Every model call goes through `src/privacy.js` on the server:
+
+1. **Detect** names, birth dates, record and member IDs, SSNs, phone numbers, emails and street addresses.
+2. **Hash** each one with HMAC-SHA256 under a per-session key, e.g. `Rosa Delgado` → `[PATIENT_7f3a9c]`. The same value always gets the same token in a session, so the model can still tell records belong to one person.
+3. **Shift every date** by a hidden per-session offset, so gaps and trends stay exact but real dates of service are not exposed.
+4. **Restore** names and dates on the server when the answer comes back. The key and token map never leave the server.
+
+Lab values, units, diagnoses and drug names are kept, because the model needs them to reason. Uploaded PDFs are read to text on the server and only the de-identified text is sent (never the file). Photos can't be de-identified, so they are refused when an AI model is configured, unless `PRIVACY_ALLOW_IMAGES=true`. The app shows a **"See exactly what the AI saw"** panel on the Review and Recommendations pages, and the tests fail if any name, birth date, ID, phone number or real date appears in a request to the model.
+
+![Private by design: data flow](docs/screenshots/privacy.jpg)
+
 ## Tools used
 
 | Area | Tools |
@@ -52,6 +65,7 @@ The demo patient in the screenshots is fictional (demo data mode).
 | Insurer source | **CMS Blue Button 2.0** sandbox: Part D prescription drug events (`ExplanationOfBenefit?type=pde`) |
 | AI | Pluggable: any OpenAI-compatible Chat Completions API (**NEAR AI**, **OpenCode Zen**, OpenRouter, Ollama) or **Claude** via the Anthropic SDK; schema-validated JSON output with Zod |
 | Documents | unpdf (PDF text extraction); built-in lab report parser for demo mode |
+| Privacy | HMAC-SHA256 pseudonymization of identifiers, per-session date shifting, server-side re-identification |
 | Agent | Server-Sent Events for live step streaming, human-approval gate before any action, iCalendar (`.ics`) invites |
 | Frontend | Plain HTML, CSS and JavaScript (no framework); Inter and Inter Tight fonts; hand-built SVG charts |
 | Testing | Node's built-in test runner with local mock servers for the EHR, CMS, Claude and OpenAI-compatible APIs (19 tests); Playwright for UI checks |
@@ -199,4 +213,4 @@ The tests start local stand-ins for the EHR, CMS, Claude and an OpenAI-compatibl
 - **The sandboxes hold different people.** The EHR test patient, the Blue Button beneficiary and the person on your PDF are not the same person. Medivault compares name and date of birth, shows a warning on the Review page, and the AI model lists the mismatch under "Before you read these". A production build would link accounts to one verified user.
 - **Sessions are in memory.** Restarting the server signs everyone out. Use a persistent session store (for example Redis) before deploying.
 - **Not medical advice.** Recommendations are decision support for a demo.
-- Uploaded files (or their text) are sent to your AI provider and not stored on disk.
+- Uploaded files are never stored on disk. Only de-identified text is sent to your AI provider (see Private by design).

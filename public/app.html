@@ -376,6 +376,16 @@ h1, h2, h3, .brand { letter-spacing: -0.03em; }
 .presenter-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .presenter-links a { color: var(--ink); background: var(--sunk); border-radius: 999px; padding: 5px 12px; text-decoration: none; font-weight: 500; }
 .presenter-links a:hover { background: var(--lime); }
+
+/* ---------- Privacy check ---------- */
+.priv { display: grid; gap: 10px; background: var(--sunk); border-radius: 14px; padding: 12px 14px; }
+.priv-top { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; }
+.priv-lock { font-size: 1.1rem; line-height: 1.2; }
+.pchips { display: flex; gap: 6px; flex-wrap: wrap; }
+.pchip { font-size: .74rem; font-weight: 600; background: var(--lime); color: #111; border-radius: 999px; padding: 2px 9px; }
+.priv summary { cursor: pointer; font-size: .85rem; font-weight: 600; }
+.priv-pre { margin: 8px 0 0; max-height: 260px; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-family: var(--font-mono); font-size: .72rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.priv-pre mark { background: var(--lime); color: #111; border-radius: 3px; padding: 0 2px; }
 </style>
 </head>
 <body>
@@ -484,6 +494,7 @@ h1, h2, h3, .brand { letter-spacing: -0.03em; }
             <div class="card chart-card" id="trendCard" hidden></div>
             <div class="card chart-card" id="rxCard" hidden></div>
             <div class="card chart-card" id="qCard" hidden></div>
+            <div class="card chart-card" id="privCard" hidden></div>
           </div>
         </div>
         <div class="footer-nav">
@@ -597,6 +608,7 @@ async function handleFile(file) {
   const fd = new FormData(); fd.append("file", file);
   try {
     await api("/api/document", { method: "POST", body: fd });
+    state.privacy = null;
     await refreshStatus();
     state.recs = null;
     dropBusy(false);
@@ -616,6 +628,7 @@ function docCard() {
       <span class="num">${esc(r.valueText || (r.value ?? "—"))}<small>${esc(r.unit || "")}</small></span>
       ${r.flag && r.flag !== "normal" ? `<span class="flag">${esc(r.flag)}</span>` : `<span class="name">${esc(r.referenceRange || "")}</span>`}</div>`).join("")}</div>` : `<p class="empty-note">No numeric results found in this document.</p>`}
     ${d.diagnoses?.length || d.medications?.length ? `<div class="groups">${d.diagnoses?.length ? `<div class="group"><h3>Diagnoses mentioned</h3><ul>${d.diagnoses.map((x) => `<li><span>${esc(x)}</span></li>`).join("")}</ul></div>` : ""}${d.medications?.length ? `<div class="group"><h3>Medications mentioned</h3><ul>${d.medications.map((x) => `<li><span>${esc(x)}</span></li>`).join("")}</ul></div>` : ""}</div>` : ""}
+    ${privacyBlock("document", true)}
     <div class="meta-line"><button class="linkish" type="button" id="replaceDoc">Upload a different document</button></div>`;
 }
 
@@ -682,6 +695,7 @@ function cmsCard() {
 
 async function renderReview() {
   if (!state.status?.document) return;
+  if (!state.privacy) await loadPrivacy();
   const paint = () => {
     $("docCard").innerHTML = docCard();
     $("epicCard").innerHTML = epicCard();
@@ -703,6 +717,22 @@ async function renderReview() {
     state.record = await api("/api/record");
   } catch (e) { banner(e.message); await refreshStatus(); }
   paint();
+}
+
+/* ---------------- privacy check ---------------- */
+const KIND_LABEL = { PATIENT: ["name", "names"], NAME: ["name part", "name parts"], DOB: ["birth date", "birth dates"], ID: ["ID", "IDs"], PHONE: ["phone number", "phone numbers"], EMAIL: ["email", "emails"], ADDRESS: ["address", "addresses"] };
+async function loadPrivacy() { try { state.privacy = await api("/api/privacy"); } catch { state.privacy = null; } return state.privacy; }
+function privacyBlock(stage, compact) {
+  const p = state.privacy, r = p?.reports?.[stage];
+  if (!r) return "";
+  const chips = Object.entries(r.replaced || {}).map(([k, n]) => `<span class="pchip">${n} ${(KIND_LABEL[k] || [k.toLowerCase(), k.toLowerCase()])[n === 1 ? 0 : 1]}</span>`).join("");
+  const sent = r.sentToAI ? `De-identified, then sent to ${esc(llmName())}` : "Demo mode: nothing was sent. This is what would be sent";
+  const hl = esc(r.preview).replace(/\[(PATIENT|NAME|DOB|ID|PHONE|EMAIL|ADDRESS)_[0-9a-f]{6}\]/g, (m) => `<mark>${m}</mark>`);
+  return `<div class="priv ${compact ? "compact" : ""}">
+    <div class="priv-top"><span class="priv-lock">🔒</span><span><b>${r.identifiersReplaced ? `${r.identifiersReplaced} identifier${r.identifiersReplaced === 1 ? "" : "s"} hashed` : "No names or IDs included"}, ${r.datesShifted} date${r.datesShifted === 1 ? "" : "s"} shifted</b><br><span class="empty-note">${sent}</span></span></div>
+    ${chips ? `<div class="pchips">${chips}</div>` : ""}
+    ${r.warning ? `<div class="warn-box">${esc(r.warning)}</div>` : ""}
+    <details><summary>See exactly what the AI ${r.sentToAI ? "saw" : "would see"}</summary><pre class="priv-pre">${hl}</pre></details></div>`;
 }
 
 /* ---------------- recommendations ---------------- */
@@ -737,6 +767,11 @@ function renderRecs() {
   renderRecCol();
   renderTrend(rec); renderRx(rec);
   renderFuAlert();
+  loadPrivacy().then(() => {
+    const html = privacyBlock("recommendations");
+    $("privCard").hidden = !html;
+    $("privCard").innerHTML = `<h3>Privacy check</h3><p class="note">The request for recommendations carries only match results, never names or birth dates, and every date is shifted.</p>${html}`;
+  });
   $("qCard").hidden = !r.questionsForDoctor?.length;
   $("qCard").innerHTML = `<h3>Questions for your doctor</h3><ol class="qlist">${(r.questionsForDoctor || []).map((q) => `<li>${escN(q)}</li>`).join("")}</ol>`;
   const anyDemo = state.status?.sources.epic.demo || state.status?.sources.cms.demo;
@@ -1024,7 +1059,7 @@ drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove
 $("toRecs").onclick = () => go("recommendations");
 async function loadSample(kind) {
   dropBusy(true, "Reading the sample lab report…");
-  try { await api(`/api/document/sample?kind=${kind}`, { method: "POST" }); await refreshStatus(); state.recs = null; fu.state = null; dropBusy(false); go("review"); }
+  try { await api(`/api/document/sample?kind=${kind}`, { method: "POST" }); state.privacy = null; await refreshStatus(); state.recs = null; fu.state = null; dropBusy(false); go("review"); }
   catch (e) { dropError(e.message); }
 }
 $("sampleDoc").onclick = () => loadSample("followup");
@@ -1033,7 +1068,7 @@ $("sampleNormal").onclick = () => loadSample("normal");
 // Presenter shortcuts: /app?demo=review|recommendations|followup|normal
 async function presenterDemo(target) {
   await api("/api/reset", { method: "POST" });
-  Object.assign(state, { epic: null, cms: null, record: null, recs: null }); fu.state = null;
+  Object.assign(state, { epic: null, cms: null, record: null, recs: null, privacy: null }); fu.state = null;
   await api(`/api/document/sample?kind=${target === "normal" ? "normal" : "followup"}`, { method: "POST" });
   await api("/api/demo/epic", { method: "POST" });
   await api("/api/demo/cms", { method: "POST" });

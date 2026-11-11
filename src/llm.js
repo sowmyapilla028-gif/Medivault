@@ -5,6 +5,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { config, llmConfigured } from "./config.js";
 import { localRecommendations, parseDocumentText } from "./local-engine.js";
+import { PrivacyShield } from "./privacy.js";
 import { extractText, getDocumentProxy } from "unpdf";
 
 let client;
@@ -138,7 +139,7 @@ export const DocumentSchema = z.object({
 const DOC_SYSTEM = `You read a patient's medical document and transcribe it into structured data for a health app.
 Transcribe only what the document states. Never infer or invent values. Keep result names as printed, but normalize obvious abbreviations (for example "HbA1c" stays "Hemoglobin A1c").
 Dates must be YYYY-MM-DD. Blood pressure goes in valueText as "systolic/diastolic" with unit mmHg and value set to the systolic number.
-If the document is not a medical document, return empty arrays and say so in the summary.`;
+If the document is not a medical document, return empty arrays and say so in the summary.\nPrivacy: names, birth dates, IDs, phone numbers, emails and addresses have been replaced with tokens such as [PATIENT_ab12cd] or [DOB_ab12cd]. Copy tokens exactly when you need them and never guess the real values. Write every date as YYYY-MM-DD.`;
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
@@ -158,45 +159,60 @@ const ensureMedical = (doc) => {
   return doc;
 };
 
+/**
+ * privacy: { state: {salt, shiftDays}, known: {names, birthDates}, secret, onReport(report) }.
+ * Everything sent to a model goes through PrivacyShield; nothing identifying leaves the server.
+ */
 export async function extractDocument(args) { return ensureMedical(await readDocument(args)); }
 
-async function readDocument({ buffer, mimetype, filename }) {
+async function readDocument({ buffer, mimetype, filename, privacy = {} }) {
+  const shield = new PrivacyShield({ ...(privacy.state || { salt: "dev", shiftDays: -90 }), secret: privacy.secret }, privacy.known);
+  const report = (sent, text) => privacy.onReport?.(shield.report("document", text, sent));
   const isText = mimetype.startsWith("text/") || mimetype === "application/json";
   if (mimetype !== "application/pdf" && !IMAGE_TYPES.has(mimetype) && !isText) {
     throw new LlmError(`Unsupported file type ${mimetype}. Upload a PDF, image or text file.`, 415);
   }
   const ask = "Transcribe this document into the required JSON structure.";
 
-  // No AI model configured: read the text and use the built-in parser.
+  // No AI model configured: read the text and use the built-in parser. Nothing is sent anywhere,
+  // but we still record what *would* have been sent so the privacy check can be shown.
   if (!llmConfigured()) {
     if (IMAGE_TYPES.has(mimetype)) throw new LlmError("Reading photos needs an AI model. Upload a text-based PDF or .txt file, or configure LLM_API_KEY and LLM_MODEL.", 422);
     const text = mimetype === "application/pdf" ? await pdfToText(buffer) : buffer.toString("utf8");
     if (text.replace(/\s/g, "").length < 20) throw new LlmError("This PDF has no readable text (it may be a scan). Upload a text-based PDF.", 422);
+    report(false, shield.redact(text));
     return parseDocumentText(text);
   }
 
-  if (config.llm.provider === "anthropic") {
-    const block = mimetype === "application/pdf"
-      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: buffer.toString("base64") }, title: filename }
-      : IMAGE_TYPES.has(mimetype)
-        ? { type: "image", source: { type: "base64", media_type: mimetype, data: buffer.toString("base64") } }
-        : { type: "text", text: `Document "${filename}":\n\n${buffer.toString("utf8")}` };
-    return structuredAnthropic({ system: DOC_SYSTEM, content: [block, { type: "text", text: ask }], schema: DocumentSchema, effort: "low" });
+  // Photos can't be de-identified before reaching a model, so they are off unless explicitly allowed.
+  if (IMAGE_TYPES.has(mimetype)) {
+    if (process.env.PRIVACY_ALLOW_IMAGES !== "true") {
+      throw new LlmError("Photos can't be de-identified before reaching the AI, so they're turned off. Upload a PDF or text file instead.", 422);
+    }
+    if (config.llm.provider === "openai" && !config.llm.vision) throw new LlmError("Photos need a model that can read images. Set LLM_VISION=true with a vision model, or upload a PDF or text file.", 422);
+    privacy.onReport?.({ ...shield.report("document", "[image sent without de-identification: PRIVACY_ALLOW_IMAGES=true]", true), warning: "Image sent as-is" });
+    const data = buffer.toString("base64");
+    const out = config.llm.provider === "anthropic"
+      ? await structuredAnthropic({ system: DOC_SYSTEM, content: [{ type: "image", source: { type: "base64", media_type: mimetype, data } }, { type: "text", text: ask }], schema: DocumentSchema, effort: "low" })
+      : await structuredOpenAI({ system: DOC_SYSTEM, userParts: [{ type: "text", text: ask }, { type: "image_url", image_url: { url: `data:${mimetype};base64,${data}` } }], schema: DocumentSchema });
+    return out;
   }
 
-  // OpenAI-compatible: send PDF text (read here), or the image if the model has vision.
-  let parts;
-  if (IMAGE_TYPES.has(mimetype)) {
-    if (!config.llm.vision) throw new LlmError("Photos need a model that can read images. Set LLM_VISION=true with a vision model, or upload a PDF or text file.", 422);
-    parts = [{ type: "text", text: ask }, { type: "image_url", image_url: { url: `data:${mimetype};base64,${buffer.toString("base64")}` } }];
-  } else {
-    const text = mimetype === "application/pdf" ? await pdfToText(buffer) : buffer.toString("utf8");
-    if (text.replace(/\s/g, "").length < 20) {
-      throw new LlmError("This PDF has no readable text (it may be a scan). Upload a text-based PDF, or a photo with a vision model.", 422);
-    }
-    parts = [{ type: "text", text: `${ask}\n\nDocument "${filename}":\n\n${text.slice(0, 200000)}` }];
+  // PDFs and text: read on the server, de-identify, then send only the de-identified text.
+  const text = mimetype === "application/pdf" ? await pdfToText(buffer) : buffer.toString("utf8");
+  if (text.replace(/\s/g, "").length < 20) {
+    throw new LlmError("This PDF has no readable text (it may be a scan). Upload a text-based PDF.", 422);
   }
-  return structuredOpenAI({ system: DOC_SYSTEM, userParts: parts, schema: DocumentSchema });
+  const safe = shield.redact(text.slice(0, 200000));
+  report(true, safe);
+  const prompt = `${ask}\n\nDocument:\n\n${safe}`;
+  const out = config.llm.provider === "anthropic"
+    ? await structuredAnthropic({ system: DOC_SYSTEM, content: [{ type: "text", text: prompt }], schema: DocumentSchema, effort: "low" })
+    : await structuredOpenAI({ system: DOC_SYSTEM, userParts: [{ type: "text", text: prompt }], schema: DocumentSchema });
+  const back = shield.reidentify(out);
+  // The real birth date only ever reached the model as a token; a plain date it returns is kept as written.
+  if (out.birthDate && !/\[DOB_/.test(out.birthDate)) back.birthDate = out.birthDate;
+  return back;
 }
 
 /* ---------------- Recommendations ---------------- */
@@ -229,14 +245,13 @@ Rules:
 - Cite only facts present in the input. Every recommendation needs evidence entries naming the source and the specific value and date.
 - Write for the patient in plain language. Suggest discussing changes with their clinician; never tell them to start, stop or change a medication on their own, and never diagnose.
 - Order by priority. Use "high" only for safety issues or clearly worsening control. Aim for 3 to 7 recommendations.
-- If the identity check shows the sources describe different people (common with separate sandbox test accounts), say so first in dataGaps and keep recommendations explicit about which source each fact comes from.`;
+- If the identity check shows the sources describe different people (common with separate sandbox test accounts), say so first in dataGaps and keep recommendations explicit about which source each fact comes from.\nPrivacy: names, birth dates, IDs, phone numbers, emails and addresses have been replaced with tokens such as [PATIENT_ab12cd] or [DOB_ab12cd]. Copy tokens exactly when you need them and never guess the real values. Write every date as YYYY-MM-DD.`;
 
 const line = (f) => [f.date || "undated", f.source, f.kind, f.label,
   f.valueText || (f.value != null ? `${f.value} ${f.unit || ""}`.trim() : ""),
   f.interpretation ? `flag:${f.interpretation}` : "", f.ref ? `ref:${f.ref}` : ""].filter(Boolean).join(" | ");
 
-export async function generateRecommendations(record, document) {
-  if (!llmConfigured()) return localRecommendations(record, document);
+export async function generateRecommendations(record, document, privacy = {}) {
   const clinical = record.facts.filter((f) => f.kind !== "fill").map(line).join("\n");
   const meds = record.medications.map((m) =>
     `${m.label}: ${m.fills.length} fill(s), last ${m.lastFill} (${m.daysSupply ?? "?"} days), runs out ${m.runOutDate}, ` +
@@ -247,8 +262,8 @@ export async function generateRecommendations(record, document) {
 
   const content = `Today is ${record.asOf}.
 
-IDENTITY CHECK (document vs each source):
-${JSON.stringify(record.identity)}
+IDENTITY CHECK (does each source match the person on the uploaded document?):
+${JSON.stringify({ ehr: record.identity.epic?.status || "not connected", pharmacy: record.identity.cms?.status || "not connected" })}
 
 UPLOADED DOCUMENT SUMMARY:
 ${document ? `${document.documentType}: ${document.summary}\nDiagnoses listed: ${document.diagnoses.join("; ") || "none"}\nMedications listed: ${document.medications.join("; ") || "none"}` : "No document uploaded."}
@@ -262,8 +277,15 @@ ${meds || "No pharmacy claims."}
 CLINICAL FACTS (date | source | type | item | value | flag | reference):
 ${clinical || "none"}`;
 
-  if (config.llm.provider === "anthropic") {
-    return structuredAnthropic({ system: REC_SYSTEM, content: [{ type: "text", text: content }], schema: RecommendationsSchema, effort: "high" });
+  const shield = new PrivacyShield({ ...(privacy.state || { salt: "dev", shiftDays: -90 }), secret: privacy.secret }, privacy.known);
+  const safe = shield.redact(content);
+  if (!llmConfigured()) {
+    privacy.onReport?.(shield.report("recommendations", safe, false));
+    return localRecommendations(record, document);
   }
-  return structuredOpenAI({ system: REC_SYSTEM, userParts: [{ type: "text", text: content }], schema: RecommendationsSchema });
+  privacy.onReport?.(shield.report("recommendations", safe, true));
+  const out = config.llm.provider === "anthropic"
+    ? await structuredAnthropic({ system: REC_SYSTEM, content: [{ type: "text", text: safe }], schema: RecommendationsSchema, effort: "high" })
+    : await structuredOpenAI({ system: REC_SYSTEM, userParts: [{ type: "text", text: safe }], schema: RecommendationsSchema });
+  return shield.reidentify(out);
 }
