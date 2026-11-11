@@ -43,7 +43,7 @@ npm install
 npm start
 ```
 
-Open http://localhost:3000 and click **Or run the whole demo with sample data**. With no AI model configured, Medivault reads documents with a built-in parser and writes recommendations with built-in rules, and the **Use demo data** buttons load a fictional patient's EHR record and pharmacy claims without signing in. Uploading your own text-based PDF also works in this mode.
+Open http://localhost:3000 for the landing page, then click **Try the demo** and **Or run the whole demo with sample data** (the app itself is at http://localhost:3000/app). With no AI model configured, Medivault reads documents with a built-in parser and writes recommendations with built-in rules, and the **Use demo data** buttons load a fictional patient's EHR record and pharmacy claims without signing in. Uploading your own text-based PDF also works in this mode.
 
 ## Setup
 

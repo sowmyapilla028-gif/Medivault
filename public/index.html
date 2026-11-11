@@ -4,694 +4,472 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Medivault</title>
+<meta name="description" content="Medivault combines your health records, pharmacy claims and latest lab results into one picture, and tells you what needs attention.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap">
 <style>
-/* Layout: a three-screen flow under a sticky stepper. Upload = one centered drop target. Review = document + two record sources stacked as a checklist. Recommendations = findings column with a chart rail beside it. */
+/* Layout: cream canvas, oversized centered headline, a phone in the middle with data cards floating around it; below, a sources strip, three steps, a feature grid and a dark call to action. */
 :root {
-  --bg: #f2f5f7;
-  --surface: #ffffff;
-  --sunk: #e9eef2;
-  --line: #d6dee5;
-  --ink: #132330;
-  --muted: #5b6c79;
-  --accent: #0d6c78;
-  --accent-soft: #dceff1;
-  --accent-ink: #ffffff;
-  --epic: #7b3f91;
-  --cms: #1d5fb8;
-  --humana: #2f7d3a;
-  --upload: #a06006;
-  --crit: #b42318;
-  --crit-bg: #fdecea;
-  --warn: #8f5500;
-  --warn-bg: #fff2d9;
-  --ok: #26743a;
-  --ok-bg: #e4f3e7;
-  --low: #1d5fb8;
-  --low-bg: #e5eef9;
-  --shadow: 0 1px 2px rgba(19, 35, 48, .06), 0 6px 24px rgba(19, 35, 48, .06);
-  --font-display: "Manrope", "Segoe UI", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0d161c; --surface: #142029; --sunk: #1a2933; --line: #293b47; --ink: #e2ecf2; --muted: #9bafbc;
-    --accent: #43b8c6; --accent-soft: #143840; --accent-ink: #05212a;
-    --epic: #cb9cdb; --cms: #84b3f2; --humana: #82d08d; --upload: #e8ab4c;
-    --crit: #ff8f85; --crit-bg: #3b1b19; --warn: #f1c066; --warn-bg: #352913; --ok: #82d08d; --ok-bg: #15301c; --low: #84b3f2; --low-bg: #182a3d;
-    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0d161c; --surface: #142029; --sunk: #1a2933; --line: #293b47; --ink: #e2ecf2; --muted: #9bafbc;
-  --accent: #43b8c6; --accent-soft: #143840; --accent-ink: #05212a;
-  --epic: #cb9cdb; --cms: #84b3f2; --humana: #82d08d; --upload: #e8ab4c;
-  --crit: #ff8f85; --crit-bg: #3b1b19; --warn: #f1c066; --warn-bg: #352913; --ok: #82d08d; --ok-bg: #15301c; --low: #84b3f2; --low-bg: #182a3d;
-  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
-  color-scheme: dark;
+  --cream: #f4f3ee;
+  --cream-2: #ecebe4;
+  --paper: #ffffff;
+  --ink: #111111;
+  --ink-2: #3a3a36;
+  --muted: #6e6d66;
+  --line: #e2e1d9;
+  --lime: #c9f36b;
+  --lime-deep: #b6e44f;
+  --sky: #cfe2ff;
+  --sky-ink: #1d4fa8;
+  --lilac: #c9b8f7;
+  --coral: #f3a07a;
+  --rose: #f6c9c2;
+  --red: #c4321f;
+  --display: "Inter Tight", "Helvetica Neue", Arial, sans-serif;
+  --body: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --shadow: 0 1px 2px rgba(17,17,17,.04), 0 12px 32px rgba(17,17,17,.08);
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--cream); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
 [hidden] { display: none !important; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
-h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+a { color: inherit; text-decoration: none; }
+h1, h2, h3 { font-family: var(--display); margin: 0; letter-spacing: -0.035em; text-wrap: balance; }
 p { margin: 0; }
-button, input { font: inherit; color: inherit; }
-button { cursor: pointer; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.muted { color: var(--muted); }
-.mono { font-family: var(--font-mono); font-size: .86em; }
-.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-.wrap { max-width: 1120px; margin: 0 auto; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
 
-/* Top bar + stepper */
-.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
-.topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; padding-block: 12px; flex-wrap: wrap; }
-.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; }
-.mark { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: grid; place-items: center; flex: none; }
-.mark svg { width: 18px; height: 18px; }
-.stepper { display: flex; align-items: center; gap: 6px; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
-.stepper li { display: flex; align-items: center; gap: 6px; }
-.stepper li + li::before { content: ""; width: 22px; height: 1px; background: var(--line); }
-.stepper button { display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 4px 6px; border-radius: 6px; color: var(--muted); font-weight: 600; font-size: .88rem; }
-.stepper button:disabled { cursor: default; opacity: .6; }
-.stepper .num { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid currentColor; display: grid; place-items: center; font-size: .75rem; font-family: var(--font-mono); }
-.stepper [aria-current="step"] { color: var(--accent); }
-.stepper [aria-current="step"] .num { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.stepper .done { color: var(--ink); }
-.stepper .done .num { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
-.demo-tag { font-size: .75rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+/* ---------- Nav ---------- */
+.nav { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--cream) 88%, transparent); backdrop-filter: blur(10px); }
+.nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-block: 18px; }
+.logo { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 1.35rem; letter-spacing: -0.04em; }
+.logo sup { font-size: .7em; margin-left: -8px; position: relative; top: -2px; }
+.mark { width: 34px; height: 34px; border-radius: 10px; background: var(--lime); display: grid; place-items: center; border: 1px solid var(--lime-deep); }
+.mark svg { width: 20px; height: 20px; }
+.links { display: flex; gap: 30px; font-size: .92rem; font-weight: 500; color: var(--ink-2); }
+.links a:hover { color: var(--ink); }
+.actions { display: flex; align-items: center; gap: 10px; }
+.pill { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 10px 18px; font-weight: 600; font-size: .92rem; border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; white-space: nowrap; transition: transform .15s ease, background .15s ease; }
+.pill:hover { transform: translateY(-1px); }
+.pill.lime { background: var(--lime); border-color: var(--lime); }
+.pill.lime:hover { background: var(--lime-deep); border-color: var(--lime-deep); }
+.pill.dark { background: var(--ink); color: var(--cream); }
+.pill.lg { padding: 15px 26px; font-size: 1rem; }
+.pill svg { width: 14px; height: 14px; }
+@media (max-width: 860px) { .links { display: none; } }
+@media (max-width: 480px) { .actions .pill:not(.lime) { display: none; } }
 
-main { padding-block: 28px 64px; }
-.view { display: grid; gap: 24px; }
+/* ---------- Hero ---------- */
+.hero { padding-block: 56px 0; text-align: center; position: relative; overflow: hidden; }
+.hero h1 { font-size: clamp(2.6rem, 7.2vw, 5.6rem); line-height: .98; font-weight: 700; max-width: 14ch; margin: 0 auto; }
+.hero .lede { font-size: clamp(1.02rem, 1.6vw, 1.2rem); color: var(--muted); max-width: 56ch; margin: 22px auto 0; }
+.hero .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 30px; }
+.stage { position: relative; height: 560px; margin-top: 40px; }
 
-/* Buttons */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); border-radius: 10px; padding: 10px 18px; font-weight: 600; font-size: .95rem; }
-.btn:disabled { opacity: .45; cursor: default; }
-.btn.ghost { background: transparent; color: var(--accent); }
-.btn.quiet { background: var(--surface); color: var(--ink); border-color: var(--line); }
-.btn.sm { padding: 6px 12px; font-size: .85rem; border-radius: 8px; }
-.btn.lg { padding: 13px 24px; font-size: 1rem; }
-.linkish { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; font-size: .88rem; text-decoration: underline; text-underline-offset: 3px; }
+/* Phone */
+.phone { position: absolute; left: 50%; bottom: -40px; transform: translateX(-50%); width: 290px; height: 590px; background: #0d0d0d; border-radius: 46px; padding: 11px; box-shadow: 0 40px 80px rgba(17,17,17,.25); z-index: 3; }
+.screen { background: #fbfbf8; border-radius: 36px; height: 100%; overflow: hidden; padding: 16px 16px 0; display: grid; align-content: start; gap: 12px; text-align: left; }
+.notch { width: 92px; height: 26px; background: #0d0d0d; border-radius: 20px; margin: -6px auto 0; }
+.statusbar { display: flex; justify-content: space-between; font-size: .7rem; font-weight: 600; margin-top: -26px; padding: 0 6px; }
+.app-top { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.app-top .mini { width: 26px; height: 26px; border-radius: 8px; background: var(--lime); display: grid; place-items: center; }
+.app-top .mini svg { width: 14px; height: 14px; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #e9b48f, #b9785a); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); }
+.hello { font-family: var(--display); font-weight: 700; font-size: 1.45rem; letter-spacing: -0.03em; }
+.small-label { font-size: .7rem; font-weight: 600; color: var(--muted); }
+.src-icons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+.src-icons div { display: grid; gap: 4px; justify-items: center; font-size: .62rem; font-weight: 600; }
+.src-icons i { width: 38px; height: 38px; border-radius: 50%; background: var(--lime); display: grid; place-items: center; }
+.src-icons i svg { width: 18px; height: 18px; }
+.mini-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: grid; gap: 4px; }
+.mini-row { display: flex; justify-content: space-between; align-items: center; font-size: .72rem; }
+.mini-row b { font-size: .8rem; }
+.dot-lime { width: 8px; height: 8px; border-radius: 50%; background: var(--lime-deep); display: inline-block; margin-right: 6px; }
+.dot-red { width: 8px; height: 8px; border-radius: 50%; background: var(--red); display: inline-block; margin-right: 6px; }
+.tabbar { margin-top: auto; display: flex; justify-content: space-around; padding: 10px 0 18px; border-top: 1px solid var(--line); font-size: .6rem; color: var(--muted); }
 
-/* ---------- Upload ---------- */
-.upload-hero { max-width: 680px; margin: 4vh auto 0; display: grid; gap: 22px; text-align: center; }
-.upload-hero h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.15; }
-.upload-hero .lede { color: var(--muted); font-size: 1.05rem; max-width: 52ch; margin: 0 auto; }
-.dropzone { background: var(--surface); border: 2px dashed var(--line); border-radius: 18px; padding: 36px 20px; display: grid; gap: 14px; justify-items: center; box-shadow: var(--shadow); transition: border-color .15s, background .15s; }
-.dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
-.dropzone .doc-icon { width: 56px; height: 56px; border-radius: 14px; background: var(--accent-soft); display: grid; place-items: center; }
-.dropzone .doc-icon svg { width: 28px; height: 28px; }
-.dropzone .types { font-size: .85rem; color: var(--muted); }
-.dropzone .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.reading { display: flex; align-items: center; gap: 10px; justify-content: center; color: var(--muted); font-size: .92rem; }
-.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); }
-@media (prefers-reduced-motion: no-preference) { .spinner { animation: spin .8s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } } }
-.upload-error { color: var(--crit); font-size: .9rem; }
-.next-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; text-align: left; }
-@media (max-width: 640px) { .next-steps { grid-template-columns: minmax(0, 1fr); } }
-.next-steps div { display: grid; gap: 2px; font-size: .86rem; color: var(--muted); padding: 12px 14px; border-radius: 12px; background: var(--sunk); }
-.next-steps b { color: var(--ink); font-size: .9rem; font-family: var(--font-display); }
-
-/* ---------- Shared card ---------- */
-.page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px 24px; flex-wrap: wrap; }
-.page-head h1 { font-size: clamp(1.5rem, 3vw, 2rem); }
-.page-head p { color: var(--muted); max-width: 62ch; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 16px; min-width: 0; box-shadow: var(--shadow); }
-.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-.card-head .who { display: flex; gap: 12px; align-items: center; min-width: 0; }
-.logo { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: .85rem; color: var(--surface); flex: none; }
-.logo.upload { background: var(--upload); } .logo.epic { background: var(--epic); } .logo.cms { background: var(--cms); } .logo.humana { background: var(--humana); }
-.card-head h2 { font-size: 1.08rem; }
-.card-head .sub { font-size: .85rem; color: var(--muted); }
-.status { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: .78rem; font-weight: 600; white-space: nowrap; }
-.status .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.status.off { background: var(--sunk); color: var(--muted); }
-.status.on { background: var(--ok-bg); color: var(--ok); }
-.status.busy { background: var(--warn-bg); color: var(--warn); }
-
-/* Review */
-.review-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
-@media (max-width: 920px) { .review-grid { grid-template-columns: minmax(0, 1fr); } }
-.review-main { display: grid; gap: 18px; min-width: 0; }
-.aside { display: grid; gap: 14px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 80px); }
-@media (max-width: 920px) { .aside { position: static; } }
-.checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.checklist li { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; }
-.tick { width: 20px; height: 20px; border-radius: 50%; flex: none; display: grid; place-items: center; border: 1.5px solid var(--line); margin-top: 1px; }
-.tick.yes { background: var(--ok); border-color: var(--ok); }
-.tick svg { width: 12px; height: 12px; }
-
-.values { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.value { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; min-width: 0; }
-.value .name { font-size: .8rem; color: var(--muted); }
-.value .num { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
-.value .num input { width: 5.2ch; border: 0; border-bottom: 1px dashed var(--line); background: transparent; font: inherit; padding: 0; }
-.value .num small { font-family: var(--font-body); font-weight: 500; font-size: .78rem; color: var(--muted); }
-.flag { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--crit); }
-.meta-line { font-size: .85rem; color: var(--muted); display: flex; gap: 6px 16px; flex-wrap: wrap; }
-
-.connect-panel { display: grid; gap: 12px; }
-.scopes { display: flex; flex-wrap: wrap; gap: 6px; }
-.scope { font-family: var(--font-mono); font-size: .72rem; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; color: var(--muted); background: var(--sunk); }
-.signin { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.signin-bar { background: var(--sunk); padding: 6px 12px; font-family: var(--font-mono); font-size: .72rem; color: var(--muted); display: flex; gap: 8px; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.signin-body { padding: 14px; display: grid; gap: 8px; }
-.signin-step { display: flex; gap: 10px; align-items: center; font-size: .88rem; color: var(--muted); }
-.signin-step.done { color: var(--ink); }
-.signin-step .tick { width: 18px; height: 18px; }
-
-.groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 640px) { .groups { grid-template-columns: minmax(0, 1fr); } }
-.group { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
-.group h3 { font-size: .82rem; font-family: var(--font-body); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
-.group h3 .mono { text-transform: none; letter-spacing: 0; font-weight: 400; }
-.group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .88rem; }
-.group li { display: flex; justify-content: space-between; gap: 10px; min-width: 0; }
-.group li span:first-child { min-width: 0; }
-.group li .d { color: var(--muted); font-size: .8rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.group.wide { grid-column: 1 / -1; }
-.match { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--ok); background: var(--ok-bg); border-radius: 8px; padding: 6px 10px; }
-.match svg { width: 14px; height: 14px; flex: none; }
-
-.optional { border-style: dashed; box-shadow: none; }
-.switch { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: .9rem; cursor: pointer; }
-.switch input { appearance: none; width: 40px; height: 22px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; flex: none; margin: 0; }
-.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); transition: left .15s; }
-.switch input:checked { background: var(--accent); }
-.switch input:checked::after { left: 21px; }
-
-details.dev summary { cursor: pointer; font-weight: 600; font-size: .9rem; color: var(--muted); }
-.table-wrap { overflow-x: auto; }
-.dev table { width: 100%; border-collapse: collapse; font-size: .82rem; min-width: 560px; margin-top: 10px; }
-.dev td, .dev th { border-bottom: 1px solid var(--line); padding: 7px 6px; text-align: left; vertical-align: top; }
-.dev th { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-
-/* ---------- Recommendations ---------- */
-.rec-hero { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; display: grid; gap: 14px; box-shadow: var(--shadow); }
-.rec-hero h1 { font-size: clamp(1.45rem, 3vw, 1.95rem); }
-.rec-hero p { color: var(--muted); max-width: 70ch; }
-.tally { display: flex; gap: 10px; flex-wrap: wrap; }
-.tally span { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 10px; font-size: .88rem; font-weight: 600; }
-.tally b { font-family: var(--font-display); font-size: 1.2rem; font-variant-numeric: tabular-nums; }
-.tally .high { background: var(--crit-bg); color: var(--crit); }
-.tally .med { background: var(--warn-bg); color: var(--warn); }
-.tally .low { background: var(--low-bg); color: var(--low); }
-.src-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: .82rem; color: var(--muted); }
-
-.rec-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start; }
-@media (max-width: 980px) { .rec-grid { grid-template-columns: minmax(0, 1fr); } }
-.rec-col { display: grid; gap: 14px; min-width: 0; }
-.rec-col h2 { font-size: .8rem; font-family: var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-top: 8px; }
-.rec { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; display: grid; min-width: 0; overflow: hidden; box-shadow: var(--shadow); }
-.rec-body { padding: 16px 18px; display: grid; gap: 10px; border-left: 4px solid var(--sevc); }
-.rec.high { --sevc: var(--crit); } .rec.med { --sevc: var(--warn); } .rec.low { --sevc: var(--low); }
-.rec-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-.rec-top h3 { font-size: 1.05rem; line-height: 1.35; }
-.sev { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; border-radius: 5px; padding: 3px 8px; white-space: nowrap; }
-.sev.high { background: var(--crit-bg); color: var(--crit); } .sev.med { background: var(--warn-bg); color: var(--warn); } .sev.low { background: var(--low-bg); color: var(--low); }
-.rec-why { font-size: .93rem; }
-.rec-do { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; font-size: .92rem; font-weight: 500; }
-.rec-do svg { width: 16px; height: 16px; flex: none; margin-top: 3px; }
-.rec details { border-top: 1px solid var(--line); }
-.rec summary { padding: 10px 18px; cursor: pointer; font-size: .85rem; font-weight: 600; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; list-style: none; }
-.rec summary::-webkit-details-marker { display: none; }
-.rec summary::before { content: "▸"; font-size: .8rem; }
-.rec details[open] summary::before { content: "▾"; }
-.evidence { list-style: none; margin: 0; padding: 0 18px 14px; display: grid; gap: 6px; font-size: .86rem; }
-.evidence li { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
-.evidence li span:last-child { min-width: 0; }
-.tag { font-family: var(--font-mono); font-size: .68rem; font-weight: 500; border-radius: 4px; padding: 1px 6px; white-space: nowrap; flex: none; color: var(--surface); }
-.tag.upload { background: var(--upload); } .tag.epic { background: var(--epic); } .tag.cms { background: var(--cms); } .tag.humana { background: var(--humana); }
-.rec.teaser { box-shadow: none; border-style: dashed; background: transparent; }
-.rec.teaser .rec-body { border-left-color: var(--line); }
-
-.rail { display: grid; gap: 16px; min-width: 0; }
-.chart-card { gap: 10px; }
-.chart-card h3 { font-size: .95rem; }
-.chart-card .note { font-size: .8rem; color: var(--muted); }
-.chart-card svg { width: 100%; height: auto; max-width: 100%; display: block; }
-.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: .78rem; color: var(--muted); }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
-.ai-out { white-space: pre-wrap; font-size: .92rem; }
-.ai-status { font-size: .82rem; color: var(--muted); }
-.footer-nav { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+/* Floating cards */
+.float { position: absolute; z-index: 4; background: var(--paper); border-radius: 18px; box-shadow: var(--shadow); padding: 14px 16px; text-align: left; }
+.f-person { left: 6%; top: 40px; display: flex; gap: 12px; align-items: center; padding: 12px 18px 12px 12px; }
+.f-person .avatar { width: 40px; height: 40px; }
+.f-person b { display: block; font-size: .95rem; }
+.f-person span { font-size: .8rem; color: var(--muted); }
+.f-badge { position: absolute; z-index: 4; left: 20%; top: 190px; background: var(--sky); color: var(--sky-ink); border-radius: 999px; padding: 8px 14px; font-size: .82rem; font-weight: 600; display: flex; gap: 8px; align-items: center; box-shadow: var(--shadow); }
+.f-badge svg { width: 14px; height: 14px; }
+.f-flow { left: 4%; bottom: 40px; width: 300px; }
+.f-flow .top { display: flex; justify-content: space-between; align-items: center; font-size: .78rem; color: var(--muted); }
+.f-flow .tag { background: var(--lime); color: var(--ink); font-weight: 600; border-radius: 999px; padding: 2px 10px; font-size: .74rem; }
+.f-flow .big { font-family: var(--display); font-weight: 800; font-size: 2.1rem; letter-spacing: -0.04em; display: flex; align-items: center; gap: 10px; margin: 6px 0 2px; }
+.f-flow .big svg { width: 24px; height: 24px; }
+.f-flow .sub { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); }
+.f-flow .bar { margin-top: 12px; background: var(--lime); border-radius: 10px; text-align: center; padding: 8px; font-weight: 600; font-size: .85rem; }
+.f-sources { right: 5%; top: 30px; width: 270px; }
+.f-sources h3 { font-size: 1rem; letter-spacing: -0.02em; margin-bottom: 10px; }
+.chips { display: flex; gap: 6px; align-items: center; }
+.chip-on { background: var(--sky); color: var(--sky-ink); border-radius: 999px; padding: 5px 12px; font-size: .78rem; font-weight: 600; display: inline-flex; gap: 6px; align-items: center; }
+.chip-on svg { width: 13px; height: 13px; }
+.circle { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; }
+.circle svg { width: 14px; height: 14px; }
+.slider { margin-top: 14px; height: 4px; background: var(--cream-2); border-radius: 4px; position: relative; }
+.slider::before { content: ""; position: absolute; inset: 0 30% 0 0; background: var(--ink); border-radius: 4px; }
+.slider::after { content: ""; position: absolute; left: 70%; top: 50%; width: 14px; height: 14px; transform: translate(-50%, -50%); background: var(--ink); border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1px var(--line); }
+.scale { display: flex; justify-content: space-between; font-size: .7rem; color: var(--muted); margin-top: 8px; }
+.f-trend { right: 7%; top: 250px; width: 230px; }
+.f-trend .k { font-size: .78rem; color: var(--muted); }
+.f-trend .v { font-family: var(--display); font-weight: 700; font-size: 1.6rem; letter-spacing: -0.03em; }
+.f-trend .v small { font-size: .8rem; color: var(--red); font-family: var(--body); font-weight: 600; margin-left: 6px; letter-spacing: 0; }
+.f-trend svg { width: 100%; height: 54px; display: block; margin-top: 6px; }
+.f-rec { right: 3%; bottom: 36px; width: 280px; display: flex; gap: 12px; align-items: flex-start; }
+.f-rec .ic { width: 36px; height: 36px; border-radius: 10px; background: var(--rose); display: grid; place-items: center; flex: none; }
+.f-rec .ic svg { width: 18px; height: 18px; }
+.f-rec b { font-size: .9rem; display: block; line-height: 1.3; }
+.f-rec span { font-size: .78rem; color: var(--muted); }
+.standards { display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .85rem; color: var(--ink-2); padding-block: 28px 0; position: relative; z-index: 5; }
+.standards b { font-weight: 600; }
+.standards .sep { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .view { animation: enter .3s ease both; }
-  @keyframes enter { from { opacity: .4; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .float, .f-badge { animation: bob 6s ease-in-out infinite; }
+  .f-sources, .f-flow { animation-delay: -2s; }
+  .f-trend, .f-badge { animation-delay: -4s; }
+  @keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
+}
+@media (max-width: 1020px) {
+  .f-person { left: 2%; } .f-badge { left: 4%; top: 120px; } .f-flow { left: 1%; width: 250px; }
+  .f-sources { right: 1%; width: 230px; } .f-trend { right: 2%; width: 200px; } .f-rec { right: 1%; width: 240px; }
+}
+@media (max-width: 760px) {
+  .stage { height: auto; display: grid; gap: 12px; margin-top: 32px; padding-bottom: 0; }
+  .float, .f-badge { position: static; width: auto; animation: none; justify-self: stretch; }
+  .f-badge { justify-self: center; }
+  .phone { position: relative; left: auto; transform: none; margin: 16px auto -40px; bottom: auto; order: 10; }
+  .f-person, .f-flow, .f-sources, .f-trend, .f-rec { width: 100%; }
 }
 
-.banner { border-radius: 12px; padding: 10px 14px; font-size: .9rem; display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-.banner.err { background: var(--crit-bg); color: var(--crit); }
-.banner.info { background: var(--low-bg); color: var(--low); }
-.banner button { background: none; border: 0; color: inherit; font-weight: 600; text-decoration: underline; }
-.warn-box { background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 8px 12px; font-size: .86rem; }
-.mismatch { background: var(--warn-bg); color: var(--warn); }
-.loading-card { display: grid; gap: 12px; justify-items: center; text-align: center; padding: 48px 20px; }
-.loading-card .spinner { width: 28px; height: 28px; border-width: 3px; }
-.qlist { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: .92rem; }
-.tag.document { background: var(--upload); }
-.empty-note { color: var(--muted); font-size: .88rem; }
+/* ---------- Sections ---------- */
+section { padding-block: 96px; }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); }
+.eyebrow::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--lime-deep); }
+.sec-head { display: grid; gap: 14px; max-width: 760px; margin-bottom: 44px; }
+.sec-head h2 { font-size: clamp(2rem, 4.4vw, 3.4rem); line-height: 1.02; font-weight: 700; }
+.sec-head p { color: var(--muted); font-size: 1.08rem; max-width: 60ch; }
+
+.sources-strip { background: var(--paper); border-block: 1px solid var(--line); padding-block: 34px; }
+.sources-strip .wrap { display: flex; align-items: center; justify-content: space-between; gap: 18px 40px; flex-wrap: wrap; }
+.sources-strip p { font-size: .9rem; color: var(--muted); max-width: 26ch; }
+.wordmarks { display: flex; gap: 14px 40px; flex-wrap: wrap; align-items: center; font-family: var(--display); font-weight: 700; font-size: 1.3rem; letter-spacing: -0.03em; color: var(--ink-2); }
+.wordmarks span { display: inline-flex; align-items: center; gap: 8px; }
+.wordmarks small { font-family: var(--body); font-weight: 500; font-size: .72rem; letter-spacing: 0; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 900px) { .steps { grid-template-columns: minmax(0, 1fr); } }
+.step { background: var(--paper); border-radius: 26px; padding: 26px; display: grid; gap: 18px; align-content: start; min-width: 0; }
+.step .num { font-family: var(--display); font-weight: 700; font-size: .95rem; width: 34px; height: 34px; border-radius: 50%; background: var(--lime); display: grid; place-items: center; }
+.step h3 { font-size: 1.55rem; line-height: 1.1; }
+.step p { color: var(--muted); }
+.vis { background: var(--cream); border-radius: 18px; padding: 16px; display: grid; gap: 8px; min-height: 170px; align-content: center; }
+.doc { background: #fff; border-radius: 12px; padding: 12px; display: grid; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.doc .line { height: 7px; border-radius: 4px; background: var(--cream-2); }
+.doc .hl { display: flex; justify-content: space-between; font-size: .78rem; font-weight: 600; background: var(--lime); border-radius: 6px; padding: 3px 8px; }
+.conn { display: flex; justify-content: space-between; align-items: center; background: #fff; border-radius: 12px; padding: 10px 12px; font-size: .85rem; font-weight: 600; }
+.toggle { width: 34px; height: 20px; border-radius: 999px; background: var(--ink); position: relative; flex: none; }
+.toggle::after { content: ""; position: absolute; right: 3px; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--lime); }
+.rec-mini { background: #fff; border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; font-size: .82rem; }
+.rec-mini b { font-size: .88rem; }
+.rec-mini .tags { display: flex; gap: 4px; }
+.rec-mini .tags span { font-size: .66rem; font-weight: 600; border-radius: 4px; padding: 1px 6px; }
+.t-ehr { background: var(--lilac); } .t-rx { background: var(--sky); color: var(--sky-ink); } .t-up { background: var(--lime); }
+
+.features { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 18px; }
+.feat { background: var(--paper); border-radius: 26px; padding: 28px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.feat.wide { grid-column: span 7; } .feat.narrow { grid-column: span 5; }
+.feat.lime { background: var(--lime); }
+.feat.dark { background: var(--ink); color: var(--cream); }
+.feat.dark p { color: #bdbcb4; }
+@media (max-width: 900px) { .feat.wide, .feat.narrow { grid-column: 1 / -1; } }
+.feat h3 { font-size: 1.7rem; line-height: 1.08; }
+.feat p { color: var(--ink-2); max-width: 46ch; }
+.supply { display: grid; gap: 10px; margin-top: 6px; }
+.supply-row { display: grid; grid-template-columns: 90px 1fr; gap: 10px; align-items: center; font-size: .82rem; font-weight: 600; }
+.track { height: 16px; border-radius: 6px; background: var(--rose); position: relative; overflow: hidden; }
+.track i { position: absolute; top: 0; bottom: 0; background: var(--ink); border-radius: 6px; }
+.alert { display: flex; gap: 12px; align-items: center; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); border-radius: 14px; padding: 12px 14px; font-size: .88rem; }
+.alert .x { width: 30px; height: 30px; border-radius: 50%; background: var(--coral); display: grid; place-items: center; flex: none; color: var(--ink); font-weight: 800; }
+.big-num { font-family: var(--display); font-weight: 800; font-size: clamp(3rem, 6vw, 4.6rem); letter-spacing: -0.05em; line-height: 1; }
+.stack { display: flex; gap: 8px; flex-wrap: wrap; }
+.stack span { background: rgba(17,17,17,.08); border-radius: 999px; padding: 6px 12px; font-size: .82rem; font-weight: 600; }
+
+.quote { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+@media (max-width: 900px) { .quote { grid-template-columns: minmax(0, 1fr); } }
+.quote blockquote { margin: 0; font-family: var(--display); font-weight: 600; font-size: clamp(1.6rem, 3vw, 2.4rem); line-height: 1.15; letter-spacing: -0.03em; }
+.quote .who { margin-top: 18px; color: var(--muted); font-size: .95rem; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.stat { background: var(--paper); border-radius: 22px; padding: 22px; display: grid; gap: 4px; }
+.stat b { font-family: var(--display); font-size: 2.2rem; letter-spacing: -0.04em; }
+.stat span { color: var(--muted); font-size: .88rem; }
+
+.cta-band { background: var(--ink); color: var(--cream); border-radius: 36px; padding: clamp(36px, 6vw, 72px); display: grid; grid-template-columns: minmax(0, 1.4fr) auto; gap: 30px; align-items: center; }
+@media (max-width: 800px) { .cta-band { grid-template-columns: minmax(0, 1fr); } }
+.cta-band h2 { font-size: clamp(2rem, 4.6vw, 3.6rem); line-height: 1; }
+.cta-band h2 em { font-style: normal; color: var(--lime); }
+.cta-band p { color: #bdbcb4; margin-top: 14px; max-width: 52ch; }
+.cta-band .pill { border-color: var(--lime); }
+.cta-band .pill.ghost { color: var(--cream); border-color: #55554f; }
+
+footer { padding-block: 40px 56px; color: var(--muted); font-size: .85rem; }
+footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; }
 </style>
 </head>
 <body>
-<header class="topbar">
-  <div class="wrap gutter">
-    <div class="brand">
-      <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
-      Medivault
+
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Medivault home">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#111"><path d="M9.5 3h5v6.5H21v5h-6.5V21h-5v-6.5H3v-5h6.5z"/></svg></span>
+      medivault<sup>+</sup>
+    </a>
+    <nav class="links" aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#sources">Data sources</a>
+      <a href="#features">Product</a>
+      <a href="#security">Security</a>
+    </nav>
+    <div class="actions">
+      <a class="pill lime" href="/app#upload">Try the demo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+      <a class="pill" href="/app">Get started <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
     </div>
-    <ol class="stepper" id="stepper" aria-label="Progress"></ol>
-    <button class="linkish" id="resetBtn" type="button">Start over</button>
   </div>
 </header>
 
-<main class="gutter">
-  <div class="wrap" style="display:grid;gap:16px">
-    <div id="banner" hidden></div>
+<main>
+  <!-- ================= HERO ================= -->
+  <div class="hero">
+    <div class="wrap">
+      <h1>Your health data, made simpler and smarter</h1>
+      <p class="lede">Medivault brings your doctor's records, your pharmacy claims and your latest lab results into one picture, then tells you what needs attention and why.</p>
+      <div class="cta">
+        <a class="pill lime lg" href="/app#upload">Upload a document</a>
+        <a class="pill lg" href="#how">See how it works</a>
+      </div>
 
-    <!-- ============ 1. UPLOAD ============ -->
-    <section class="view" id="view-upload" aria-labelledby="upTitle">
-      <div class="upload-hero">
-        <h1 id="upTitle">Start with your latest health document</h1>
-        <p class="lede">Upload a lab report or visit summary. AI reads it, then we pull in your health record and your Medicare pharmacy claims so the recommendations see the whole picture.</p>
-        <div class="dropzone" id="drop">
-          <div class="doc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg></div>
-          <div id="dropIdle" style="display:grid;gap:12px;justify-items:center">
-            <p style="font-weight:600;font-size:1.05rem">Drag a file here</p>
-            <p class="types">PDF, photo (JPG, PNG) or text file, up to 25 MB</p>
-            <div class="row">
-              <label class="btn" for="fileIn">Choose file</label>
-              <input id="fileIn" type="file" accept=".pdf,.txt,.json,image/jpeg,image/png,image/webp" hidden>
-              <button class="btn quiet" id="sampleDoc" type="button">Try a sample lab report</button>
+      <div class="stage">
+        <div class="float f-person">
+          <span class="avatar" aria-hidden="true"></span>
+          <div><b>Rosa Delgado</b><span>Patient · 3 sources linked</span></div>
+        </div>
+
+        <div class="f-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Records synced just now</div>
+
+        <div class="float f-flow">
+          <div class="top"><span>MV-2026 · Combined record</span><span class="tag">Matched</span></div>
+          <div class="big">EHR <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Rx</div>
+          <div class="sub"><span>15 clinical items</span><span>+ 1 upload</span><span>14 fills</span></div>
+          <div class="bar">See recommendations</div>
+        </div>
+
+        <div class="phone" aria-hidden="true">
+          <div class="screen">
+            <div class="notch"></div>
+            <div class="statusbar"><span>9:41</span><span>●●● 5G</span></div>
+            <div class="app-top">
+              <span class="mini"><svg viewBox="0 0 24 24" fill="#111"><path d="M9.5 3h5v6.5H21v5h-6.5V21h-5v-6.5H3v-5h6.5z"/></svg></span>
+              <span class="avatar"></span>
             </div>
-            <button class="linkish" id="fullDemo" type="button">Or run the whole demo with sample data</button>
+            <div class="hello">Hello, Rosa</div>
+            <div class="small-label">Your sources</div>
+            <div class="src-icons">
+              <div><i><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-6h6v6M12 8v4M10 10h4"/></svg></i>EHR</div>
+              <div><i><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="7" rx="3.5" transform="rotate(-35 12 12.5)"/><path d="M9.2 15.7l5.6-5.4"/></svg></i>Pharmacy</div>
+              <div><i><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L5 19a1.5 1.5 0 0 0 1.3 2h11.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7.5 15h9"/></svg></i>Labs</div>
+              <div><i><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg></i>Upload</div>
+            </div>
+            <div class="small-label">Needs attention</div>
+            <div class="mini-card">
+              <div class="mini-row"><b><span class="dot-red"></span>Metformin ran out</b><span>›</span></div>
+              <div class="mini-row" style="color:var(--muted)"><span>53 days without supply</span><span>Rx</span></div>
+            </div>
+            <div class="mini-card">
+              <div class="mini-row"><b><span class="dot-red"></span>A1c rising</b><span>›</span></div>
+              <div class="mini-row" style="color:var(--muted)"><span>7.4 → 8.1 → 8.9%</span><span>EHR + Lab</span></div>
+            </div>
+            <div class="small-label">Up to date</div>
+            <div class="mini-card">
+              <div class="mini-row"><b><span class="dot-lime"></span>Lisinopril refills</b><span>›</span></div>
+              <div class="mini-row" style="color:var(--muted)"><span>99% of days covered</span><span>Rx</span></div>
+            </div>
+            <div class="tabbar"><span>Home</span><span>Records</span><span>Insights</span><span>Profile</span></div>
           </div>
-          <div class="reading" id="dropBusy" hidden><span class="spinner"></span><span id="dropBusyText">Reading your document…</span></div>
-          <p class="upload-error" id="dropErr" hidden></p>
         </div>
-        <div class="next-steps">
-          <div><b>Review</b>Check what was read and connect your health record and Medicare.</div>
-          <div><b>Combine</b>Your document, clinical record and pharmacy fills are matched to you.</div>
-          <div><b>Recommend</b>See what needs attention, with the evidence for each.</div>
-        </div>
-      </div>
-    </section>
 
-    <!-- ============ 2. REVIEW ============ -->
-    <section class="view" id="view-review" aria-labelledby="rvTitle" hidden>
-      <div class="page-head">
-        <div style="display:grid;gap:6px">
-          <h1 id="rvTitle">Review and connect</h1>
-          <p>Check what was read from your document, then sign in to your health record and Medicare to add your records.</p>
-        </div>
-      </div>
-      <div class="review-grid">
-        <div class="review-main">
-          <article class="card" id="docCard"></article>
-          <article class="card" id="epicCard"></article>
-          <article class="card" id="cmsCard"></article>
-        </div>
-        <aside class="aside">
-          <div class="card">
-            <h2 style="font-size:1rem">Ready to combine</h2>
-            <ul class="checklist" id="readyList"></ul>
-            <button class="btn lg" id="toRecs" type="button" disabled>See recommendations</button>
-            <p class="empty-note" id="readyNote"></p>
+        <div class="float f-sources">
+          <h3>Connect your sources</h3>
+          <div class="chips">
+            <span class="chip-on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>EHR</span>
+            <span class="circle" style="background:var(--lilac)" title="Pharmacy"><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="9" width="18" height="7" rx="3.5" transform="rotate(-35 12 12.5)"/></svg></span>
+            <span class="circle" style="background:var(--lilac)" title="Labs"><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round"><path d="M10 3v6L5 19h14L14 9V3"/></svg></span>
+            <span class="circle" style="background:var(--coral)" title="Dental and vision"><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/></svg></span>
           </div>
-        </aside>
-      </div>
-    </section>
+          <div class="slider" aria-hidden="true"></div>
+          <div class="scale"><span>1 source</span><span>3 sources</span><span>All</span></div>
+        </div>
 
-    <!-- ============ 3. RECOMMENDATIONS ============ -->
-    <section class="view" id="view-recommendations" aria-labelledby="rcTitle" hidden>
-      <div id="recLoading" class="card loading-card" hidden>
-        <span class="spinner"></span>
-        <h2 style="font-size:1.1rem" id="recLoadingTitle">Reviewing your combined record</h2>
-        <p class="muted" id="recLoadingText">This usually takes 30–90 seconds.</p>
+        <div class="float f-trend">
+          <div class="k">Hemoglobin A1c</div>
+          <div class="v">8.9%<small>▲ 0.8</small></div>
+          <svg viewBox="0 0 200 54" aria-label="A1c rising from 7.4 to 8.9 percent">
+            <path d="M4 44 L100 30 L196 8 L196 54 L4 54Z" fill="#c9f36b" opacity=".45"/>
+            <path d="M4 44 L100 30 L196 8" fill="none" stroke="#111" stroke-width="2.5" stroke-linejoin="round"/>
+            <circle cx="4" cy="44" r="3.5" fill="#111"/><circle cx="100" cy="30" r="3.5" fill="#111"/><circle cx="196" cy="8" r="5" fill="#111" stroke="#fff" stroke-width="2"/>
+          </svg>
+        </div>
+
+        <div class="float f-rec">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>
+          <div><b>Allergy alert: amoxicillin was dispensed</b><span>Penicillin allergy in EHR · Pharmacy claim Mar 19</span></div>
+        </div>
       </div>
-      <div id="recError" hidden></div>
-      <div id="recBody" hidden style="display:grid;gap:24px">
-        <div class="rec-hero">
-          <h1 id="rcTitle"></h1>
-          <p id="rcLede"></p>
-          <div class="tally" id="tally"></div>
-          <div class="src-row" id="srcRow"></div>
-        </div>
-        <div id="gaps"></div>
-        <div class="rec-grid">
-          <div class="rec-col" id="recCol"></div>
-          <div class="rail">
-            <div class="card chart-card" id="trendCard" hidden></div>
-            <div class="card chart-card" id="rxCard" hidden></div>
-            <div class="card chart-card" id="qCard" hidden></div>
-          </div>
-        </div>
-        <div class="footer-nav">
-          <button class="btn quiet" id="backReview" type="button">Back to review</button>
-          <button class="btn ghost" id="regen" type="button">Regenerate</button>
-        </div>
-        <p class="muted" style="font-size:.8rem" id="genNote"></p>
-      </div>
-    </section>
+    </div>
   </div>
+  <div class="standards wrap">
+    <b>Built on open standards</b><span class="sep"></span>FHIR R4<span class="sep"></span>SMART on FHIR<span class="sep"></span>CMS Blue Button 2.0<span class="sep"></span>OAuth 2.0 + PKCE
+  </div>
+
+  <!-- ================= SOURCES STRIP ================= -->
+  <div class="sources-strip" id="sources" style="margin-top:56px">
+    <div class="wrap">
+      <p>One sign-in per source. Medivault reads what each one already knows about you.</p>
+      <div class="wordmarks">
+        <span>Epic <small>EHR</small></span>
+        <span>SMART Health IT <small>EHR</small></span>
+        <span>CMS Blue Button <small>Pharmacy</small></span>
+        <span>Your lab reports <small>Upload</small></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= HOW IT WORKS ================= -->
+  <section id="how">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">How it works</span>
+        <h2>Three steps from scattered files to one clear plan</h2>
+        <p>Your health story lives in different places. Medivault lines it up by date, matches it to you, and checks it from every angle at once.</p>
+      </div>
+      <div class="steps">
+        <article class="step">
+          <span class="num">1</span>
+          <div class="vis" aria-hidden="true">
+            <div class="doc">
+              <div class="line" style="width:60%"></div><div class="line" style="width:85%"></div>
+              <div class="hl"><span>Hemoglobin A1c</span><span>8.9 % H</span></div>
+              <div class="hl" style="background:var(--sky)"><span>LDL cholesterol</span><span>128 mg/dL</span></div>
+              <div class="line" style="width:70%"></div>
+            </div>
+          </div>
+          <h3>Upload your latest document</h3>
+          <p>Drop in a lab report or visit summary. AI reads every value, flag and reference range, and you check it before anything else happens.</p>
+        </article>
+        <article class="step">
+          <span class="num">2</span>
+          <div class="vis" aria-hidden="true">
+            <div class="conn"><span>Health record · EHR</span><span class="toggle"></span></div>
+            <div class="conn"><span>Pharmacy claims · Medicare</span><span class="toggle"></span></div>
+            <div class="conn" style="color:var(--muted)"><span>Dental and vision</span><span class="toggle" style="background:var(--cream-2)"></span></div>
+          </div>
+          <h3>Connect your records</h3>
+          <p>Sign in to your health record and your insurer. Conditions, labs, vitals, allergies, vaccines and every prescription you filled come back securely.</p>
+        </article>
+        <article class="step">
+          <span class="num">3</span>
+          <div class="vis" aria-hidden="true">
+            <div class="rec-mini"><b>Restart metformin conversation</b><span style="color:var(--muted)">A1c up while refills stopped</span>
+              <div class="tags"><span class="t-up">Upload</span><span class="t-ehr">EHR</span><span class="t-rx">Rx</span></div></div>
+            <div class="rec-mini"><b>Book a yearly eye exam</b><span style="color:var(--muted)">Diabetes, no exam in 26 months</span>
+              <div class="tags"><span class="t-ehr">EHR</span></div></div>
+          </div>
+          <h3>Get recommendations that cite their sources</h3>
+          <p>Every finding shows exactly which record it came from, so you and your doctor can trust it and act on it.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FEATURES ================= -->
+  <section id="features" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">What it catches</span>
+        <h2>Things no single record can see on its own</h2>
+      </div>
+      <div class="features">
+        <article class="feat wide">
+          <h3>Refill gaps, next to the lab results they explain</h3>
+          <p>Your doctor sees what was prescribed. Your pharmacy sees what was picked up. Medivault puts them side by side, so a rising A1c and a lapsed metformin refill show up as one story.</p>
+          <div class="supply" aria-label="Medication supply example">
+            <div class="supply-row"><span>Lisinopril</span><div class="track" style="background:var(--lime)"><i style="left:0;right:0"></i></div></div>
+            <div class="supply-row"><span>Metformin</span><div class="track"><i style="left:0;right:46%"></i><i style="left:62%;right:28%"></i></div></div>
+            <div class="supply-row"><span>Atorvastatin</span><div class="track"><i style="left:0;right:55%"></i></div></div>
+          </div>
+        </article>
+        <article class="feat narrow dark">
+          <h3>Safety checks across sources</h3>
+          <p>An allergy recorded by one doctor, a prescription written by another, filled at a pharmacy that never heard about it.</p>
+          <div class="alert"><span class="x">!</span><span><b>Penicillin allergy</b> vs. <b>amoxicillin</b> filled Mar 19</span></div>
+        </article>
+        <article class="feat narrow lime">
+          <span class="big-num">1</span>
+          <h3>One view of you, across every source</h3>
+          <p>Names and birth dates are matched across sources, and anything that doesn't line up is flagged before you read a single recommendation.</p>
+        </article>
+        <article class="feat wide" id="security">
+          <h3>Private by design</h3>
+          <p>Access tokens never reach your browser. Uploaded files are read and not stored. Each source is connected with its own consent screen, and you can disconnect it at any time.</p>
+          <div class="stack"><span>OAuth 2.0 + PKCE</span><span>Server-side tokens</span><span>Read-only scopes</span><span>No file storage</span><span>Disconnect anytime</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= QUOTE + STATS ================= -->
+  <section style="padding-top:0">
+    <div class="wrap quote">
+      <div>
+        <blockquote>"I had the lab report, the pharmacy app and the patient portal open in three tabs. Medivault was the first thing that put them in the same sentence."</blockquote>
+        <p class="who">Example of the experience we're building for</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>3</b><span>sources combined in one view</span></div>
+        <div class="stat"><b>6</b><span>FHIR resource types read</span></div>
+        <div class="stat"><b>&lt;2 min</b><span>from upload to recommendations</span></div>
+        <div class="stat"><b>100%</b><span>of findings cite their source</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CTA ================= -->
+  <section style="padding-top:0">
+    <div class="wrap">
+      <div class="cta-band">
+        <div>
+          <h2>See your health <em>as one picture.</em></h2>
+          <p>Start with a lab report you already have. Run the full demo with sample data in under a minute, no sign-up needed.</p>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <a class="pill lime lg" href="/app#upload">Try the demo</a>
+          <a class="pill ghost lg" href="/app">Open the app</a>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
 
-<script>
-(() => {
-"use strict";
-const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const toD = (s) => new Date(s + "T00:00:00Z");
-const fmt = (s) => (s ? toD(s).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }) : "undated");
-const fmtMY = (s) => (s ? toD(s).toLocaleDateString("en-US", { year: "numeric", month: "short", timeZone: "UTC" }) : "");
-const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const TICK = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--surface)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
-const TICK_OK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
-const ARROW = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
-const SRC = { document: "Your upload", epic: "EHR", cms: "CMS pharmacy" };
-const ehrLabel = () => (state.status?.sources.epic.demo ? "Demo EHR" : state.status?.sources.epic.label || "EHR");
-const llmName = () => state.status?.llmLabel || "AI";
-const hasLlm = () => !!state.status?.llmConfigured;
-
-async function api(path, opts = {}) {
-  const res = await fetch(path, { credentials: "same-origin", ...opts });
-  let body = null;
-  try { body = await res.json(); } catch {}
-  if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
-  return body;
-}
-
-/* ---------------- state + routing ---------------- */
-const VIEWS = ["upload", "review", "recommendations"];
-const state = { view: "upload", status: null, epic: null, cms: null, record: null, recs: null };
-const connected = (k) => !!state.status?.sources[k]?.connected;
-const canReview = () => !!state.status?.document;
-const canRecs = () => canReview() && (connected("epic") || connected("cms"));
-
-function banner(msg, kind = "err") {
-  const b = $("banner");
-  if (!msg) { b.hidden = true; return; }
-  b.hidden = false; b.className = "banner " + kind;
-  b.innerHTML = `<span>${esc(msg)}</span><button type="button" id="bannerX">Dismiss</button>`;
-  $("bannerX").onclick = () => banner(null);
-}
-
-function go(view, push = true) {
-  if (view === "review" && !canReview()) view = "upload";
-  if (view === "recommendations" && !canRecs()) view = canReview() ? "review" : "upload";
-  state.view = view;
-  for (const v of VIEWS) $("view-" + v).hidden = v !== view;
-  if (push && location.hash !== "#" + view) history.replaceState(null, "", location.pathname + "#" + view);
-  renderStepper();
-  if (view === "review") renderReview();
-  if (view === "recommendations") loadRecs(false);
-  window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
-}
-window.addEventListener("hashchange", () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== state.view) go(v, false); });
-
-function renderStepper() {
-  const labels = { upload: "Upload", review: "Review", recommendations: "Recommendations" };
-  const idx = VIEWS.indexOf(state.view);
-  const allowed = { upload: true, review: canReview(), recommendations: canRecs() };
-  $("stepper").innerHTML = VIEWS.map((v, i) => `<li><button type="button" data-go="${v}" ${allowed[v] ? "" : "disabled"} class="${i < idx ? "done" : ""}" ${v === state.view ? 'aria-current="step"' : ""}><span class="num">${i < idx ? "✓" : i + 1}</span>${labels[v]}</button></li>`).join("");
-}
-
-async function refreshStatus() { state.status = await api("/api/status"); SRC.epic = ehrLabel(); return state.status; }
-
-/* ---------------- upload ---------------- */
-function dropBusy(on, msg) { $("dropIdle").hidden = on; $("dropBusy").hidden = !on; if (msg) $("dropBusyText").textContent = msg; if (on) $("dropErr").hidden = true; }
-function dropError(msg) { dropBusy(false); $("dropErr").hidden = false; $("dropErr").textContent = msg; }
-async function handleFile(file) {
-  if (file.size > 25 * 1024 * 1024) return dropError("That file is larger than 25 MB.");
-  dropBusy(true, hasLlm() ? `${llmName()} is reading ${file.name}…` : `Reading ${file.name}…`);
-  const fd = new FormData(); fd.append("file", file);
-  try {
-    await api("/api/document", { method: "POST", body: fd });
-    await refreshStatus();
-    state.recs = null;
-    dropBusy(false);
-    go("review");
-  } catch (e) { dropError(e.message); }
-}
-
-/* ---------------- review ---------------- */
-function docCard() {
-  const d = state.status.document;
-  const results = d.results || [];
-  return `<div class="card-head"><div class="who"><span class="logo upload">DOC</span><div><h2>Your document</h2>
-      <p class="sub">${esc(d.name)} · ${esc(d.documentType)}${d.documentDate ? " · " + fmt(d.documentDate) : ""}${d.patientName ? " · " + esc(d.patientName) : ""}</p></div></div>
-      <span class="status on"><span class="dot"></span>${results.length} result${results.length === 1 ? "" : "s"} read by ${esc(llmName())}</span></div>
-    <p style="font-size:.92rem">${esc(d.summary)}</p>
-    ${results.length ? `<div class="values">${results.map((r) => `<div class="value"><span class="name">${esc(r.name)}</span>
-      <span class="num">${esc(r.valueText || (r.value ?? "—"))}<small>${esc(r.unit || "")}</small></span>
-      ${r.flag && r.flag !== "normal" ? `<span class="flag">${esc(r.flag)}</span>` : `<span class="name">${esc(r.referenceRange || "")}</span>`}</div>`).join("")}</div>` : `<p class="empty-note">No numeric results found in this document.</p>`}
-    ${d.diagnoses?.length || d.medications?.length ? `<div class="groups">${d.diagnoses?.length ? `<div class="group"><h3>Diagnoses mentioned</h3><ul>${d.diagnoses.map((x) => `<li><span>${esc(x)}</span></li>`).join("")}</ul></div>` : ""}${d.medications?.length ? `<div class="group"><h3>Medications mentioned</h3><ul>${d.medications.map((x) => `<li><span>${esc(x)}</span></li>`).join("")}</ul></div>` : ""}</div>` : ""}
-    <div class="meta-line"><button class="linkish" type="button" id="replaceDoc">Upload a different document</button></div>`;
-}
-
-function identityLine(key) {
-  const id = state.record?.identity?.[key];
-  if (!id) return "";
-  if (id.status === "match") return `<div class="match">${TICK_OK}Matches your document: ${esc(id.name)}${id.birthDate ? ", born " + fmt(id.birthDate) : ""}</div>`;
-  if (id.status === "mismatch") return `<div class="warn-box">This record belongs to ${esc(id.name || "a different person")}${id.birthDate ? " (born " + fmt(id.birthDate) + ")" : ""}, which doesn't match your document${state.record.identity.document.name ? " (" + esc(state.record.identity.document.name) + ")" : ""}. Sandbox test accounts are usually different people; recommendations will flag this.</div>`;
-  return `<div class="warn-box">Signed in as ${esc(id.name || "unknown")}. We couldn't confirm this matches your document.</div>`;
-}
-
-function sourceHead(key, logo, title, sub) {
-  const s = state.status.sources[key];
-  const st = s.connected ? "on" : "off";
-  return `<div class="card-head"><div class="who"><span class="logo ${key}">${logo}</span><div><h2>${title}</h2><p class="sub">${sub}</p></div></div>
-    <span class="status ${s.demo ? "busy" : st}"><span class="dot"></span>${s.demo ? "Demo data" : s.connected ? "Connected" : "Not connected"}</span></div>`;
-}
-function connectBlock(key, scopes, btn) {
-  const s = state.status.sources[key];
-  const demoBtn = `<button class="btn ${s.configured ? "quiet" : ""}" type="button" data-demo="${key}">Use demo data</button>`;
-  if (!s.configured) return `<div class="connect-panel"><div class="scopes">${scopes.map((x) => `<span class="scope">${x}</span>`).join("")}</div>
-    <p class="empty-note">No client ID is set for ${esc(s.label)}, so live sign-in is off. Use demo data for now.</p><div>${demoBtn}</div></div>`;
-  return `<div class="connect-panel"><div class="scopes">${scopes.map((x) => `<span class="scope">${x}</span>`).join("")}</div>
-    ${s.error ? `<div class="warn-box">${esc(s.error)}</div>` : ""}
-    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="/auth/${key}/start">${btn}</a>${demoBtn}</div>
-    <p class="empty-note">You'll sign in on ${key === "epic" ? esc(ehrLabel()) + "'s sandbox (pick any test patient)" : "Medicare.gov's sandbox"} and come back here.</p></div>`;
-}
-const li = (a, b) => `<li><span>${a}</span><span class="d">${b}</span></li>`;
-const group = (title, items, wide) => `<div class="group${wide ? " wide" : ""}"><h3>${title} <span class="mono">${items.length}</span></h3>${items.length ? `<ul>${items.join("")}</ul>` : `<p class="empty-note">None on file</p>`}</div>`;
-const valueOf = (f) => f.valueText || (f.value != null ? `<b>${esc(f.value)}</b> ${esc(f.unit || "")}` : "");
-
-function epicCard() {
-  const head = sourceHead("epic", "EHR", `${esc(ehrLabel())} health record`, "Conditions, labs, vitals, allergies and vaccines");
-  if (!connected("epic")) return head + connectBlock("epic", ["Patient", "Condition", "Observation · labs", "Observation · vitals", "AllergyIntolerance", "Immunization"], `Connect ${esc(ehrLabel())}`);
-  if (!state.epic) return head + `<div class="reading"><span class="spinner"></span>Loading your health record…</div>`;
-  const F = [...state.epic.facts].sort((x, y) => (y.date || "").localeCompare(x.date || "")), pick = (k) => F.filter((f) => f.kind === k);
-  const latest = (list) => { const seen = new Set(); return list.filter((f) => { const k = f.code || f.label; if (seen.has(k)) return false; seen.add(k); return true; }); };
-  const labs = latest(pick("lab")), vitals = latest(pick("vital"));
-  return head + identityLine("epic") +
-    (state.epic.warnings?.length ? `<div class="warn-box">Some data couldn't be loaded: ${esc(state.epic.warnings.join("; "))}</div>` : "") +
-    `<div class="groups">
-      ${group("Conditions", pick("condition").map((f) => li(esc(f.label), f.date ? "since " + toD(f.date).getUTCFullYear() : "")))}
-      ${group("Allergies", pick("allergy").map((f) => li(esc(f.label), esc(f.valueText || ""))))}
-      ${group(`Lab results (latest of ${pick("lab").length})`, labs.slice(0, 12).map((f) => li(`${esc(f.label)} ${valueOf(f)}`, fmtMY(f.date))))}
-      ${group(`Vitals (latest of ${pick("vital").length})`, vitals.slice(0, 10).map((f) => li(`${esc(f.label)} ${valueOf(f)}`, fmtMY(f.date))))}
-      ${group("Vaccines", pick("immunization").map((f) => li(esc(f.label), fmt(f.date))), true)}
-    </div><div class="meta-line"><button class="linkish" type="button" data-disconnect="epic">Disconnect ${esc(ehrLabel())}</button></div>`;
-}
-
-function cmsCard() {
-  const head = sourceHead("cms", "Rx", "Pharmacy claims · CMS Blue Button", "Insurer A · prescriptions actually filled (Medicare Part D)");
-  if (!connected("cms")) return head + connectBlock("cms", ["Patient", "ExplanationOfBenefit · type=pde"], "Connect Medicare");
-  if (!state.record) return head + `<div class="reading"><span class="spinner"></span>Loading your pharmacy claims…</div>`;
-  const meds = state.record.medications;
-  return head + identityLine("cms") +
-    (state.cms?.warnings?.length ? `<div class="warn-box">Some data couldn't be loaded: ${esc(state.cms.warnings.join("; "))}</div>` : "") +
-    (meds.length ? `<div class="groups">${meds.slice(0, 12).map((m) => `<div class="group"><h3>${esc(m.drug)} <span class="mono">${m.fills.length} fill${m.fills.length > 1 ? "s" : ""}</span></h3><ul>
-      <li><span><b>${esc(m.label)}</b></span></li>
-      <li><span>Last fill ${fmt(m.lastFill)}</span><span class="d">${m.daysSupply ?? "?"}-day supply</span></li></ul>
-      ${m.status === "lapsed" ? `<span class="flag">Ran out ${m.daysWithoutSupply} days ago</span>` : m.status === "one-time" ? `<span class="empty-note">One-time fill</span>` : `<span style="color:var(--ok);font-size:.78rem;font-weight:600">Supply current</span>`}</div>`).join("")}</div>
-      ${meds.length > 12 ? `<p class="empty-note">Showing 12 of ${meds.length} medications.</p>` : ""}` : `<p class="empty-note">No Part D pharmacy claims were returned for this beneficiary.</p>`) +
-    `<div class="meta-line"><button class="linkish" type="button" data-disconnect="cms">Disconnect Medicare</button></div>`;
-}
-
-async function renderReview() {
-  if (!state.status?.document) return;
-  const paint = () => {
-    $("docCard").innerHTML = docCard();
-    $("epicCard").innerHTML = epicCard();
-    $("cmsCard").innerHTML = cmsCard();
-    const items = [[true, "Document read", state.status.document.documentType],
-      [connected("epic"), `${ehrLabel()} health record`, "Clinical data"], [connected("cms"), "CMS pharmacy claims", "Prescription fills"]];
-    $("readyList").innerHTML = items.map(([ok, a, b]) => `<li><span class="tick ${ok ? "yes" : ""}">${ok ? TICK : ""}</span><span><b>${esc(a)}</b><br><span class="muted" style="font-size:.82rem">${esc(b)}</span></span></li>`).join("");
-    $("toRecs").disabled = !canRecs();
-    $("readyNote").textContent = canRecs() ? (connected("epic") && connected("cms") ? "" : "You can continue now, but connecting both gives better recommendations.") : "Connect at least one record to continue.";
-    $("replaceDoc").onclick = async () => { await api("/api/document", { method: "DELETE" }); await refreshStatus(); go("upload"); };
-    renderStepper();
-  };
-  paint();
-  try {
-    const jobs = [];
-    if (connected("epic") && !state.epic) jobs.push(api("/api/sources/epic").then((d) => (state.epic = d)));
-    if (connected("cms") && !state.cms) jobs.push(api("/api/sources/cms").then((d) => (state.cms = d)));
-    await Promise.all(jobs);
-    state.record = await api("/api/record");
-  } catch (e) { banner(e.message); await refreshStatus(); }
-  paint();
-}
-
-/* ---------------- recommendations ---------------- */
-async function loadRecs(regenerate) {
-  if (state.recs && !regenerate) return renderRecs();
-  $("recLoading").hidden = false; $("recBody").hidden = true; $("recError").hidden = true;
-  $("recLoadingTitle").textContent = hasLlm() ? `${llmName()} is reviewing your combined record` : "Checking your combined record";
-  $("recLoadingText").textContent = hasLlm() ? "This usually takes 30–90 seconds." : "This takes a moment.";
-  try {
-    state.recs = await api("/api/recommendations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ regenerate: !!regenerate }) });
-    renderRecs();
-  } catch (e) {
-    $("recError").hidden = false;
-    $("recError").innerHTML = `<div class="card"><h2 style="font-size:1.05rem">We couldn't generate recommendations</h2><p>${esc(e.message)}</p><div><button class="btn" type="button" id="retryRecs">Try again</button></div></div>`;
-    $("retryRecs").onclick = () => loadRecs(true);
-  } finally { $("recLoading").hidden = true; }
-}
-
-function renderRecs() {
-  const r = state.recs, rec = r.record;
-  $("recBody").hidden = false;
-  const recs = r.recommendations || [];
-  const n = (p) => recs.filter((x) => x.priority === p).length;
-  $("rcTitle").textContent = r.headline;
-  $("rcLede").textContent = r.overview;
-  $("tally").innerHTML = `<span class="high"><b>${n("high")}</b> act now</span><span class="med"><b>${n("medium")}</b> soon</span><span class="low"><b>${n("low")}</b> routine</span>`;
-  const srcs = ["document", "epic", "cms"].filter((s) => rec.counts[s] > 0);
-  $("srcRow").innerHTML = "Sources: " + srcs.map((s) => `<span class="tag ${s}">${SRC[s]}</span> <span>${rec.counts[s]} item${rec.counts[s] === 1 ? "" : "s"}</span>`).join(" ");
-  $("gaps").innerHTML = r.dataGaps?.length ? `<div class="warn-box"><b>Before you read these:</b><ul class="qlist" style="margin-top:6px">${r.dataGaps.map((g) => `<li>${esc(g)}</li>`).join("")}</ul></div>` : "";
-  const groups = [["high", "Act now"], ["medium", "Soon"], ["low", "Routine"]];
-  let html = "";
-  for (const [p, label] of groups) {
-    const list = recs.filter((x) => x.priority === p); if (!list.length) continue;
-    const cls = p === "medium" ? "med" : p;
-    html += `<h2>${label}</h2>` + list.map((x) => {
-      const used = [...new Set(x.evidence.map((e) => e.source))];
-      return `<article class="rec ${cls}"><div class="rec-body">
-        <div class="rec-top"><h3>${esc(x.title)}</h3><span class="sev ${cls}">${label}</span></div>
-        <p class="rec-why">${esc(x.why)}</p>
-        <div class="rec-do">${ARROW}<span>${esc(x.action)}</span></div></div>
-        <details ${p === "high" ? "open" : ""}><summary>How we know ${used.map((s) => `<span class="tag ${s}">${SRC[s]}</span>`).join("")}</summary>
-        <ul class="evidence">${x.evidence.map((e) => `<li><span class="tag ${e.source}">${SRC[e.source]}</span><span>${esc(e.detail)}</span></li>`).join("")}</ul></details></article>`;
-    }).join("");
-  }
-  $("recCol").innerHTML = html || `<div class="card"><p>No recommendations came back for this record.</p></div>`;
-  renderTrend(rec); renderRx(rec);
-  $("qCard").hidden = !r.questionsForDoctor?.length;
-  $("qCard").innerHTML = `<h3>Questions for your doctor</h3><ol class="qlist">${(r.questionsForDoctor || []).map((q) => `<li>${esc(q)}</li>`).join("")}</ol>`;
-  const anyDemo = state.status?.sources.epic.demo || state.status?.sources.cms.demo;
-  $("genNote").textContent = `Generated by ${hasLlm() ? llmName() : "built-in rules"} on ${new Date(r.generatedAt).toLocaleString()} from ${anyDemo ? "demo data" : `live ${ehrLabel()} and CMS data`} plus your upload. Not medical advice.`;
-}
-
-function renderTrend(rec) {
-  const pref = ["a1c", "ldl", "glucose", "egfr", "uacr", "bp", "bmi"];
-  const names = { a1c: "Hemoglobin A1c", ldl: "LDL cholesterol", glucose: "Glucose", egfr: "eGFR", uacr: "Urine albumin/creatinine", bp: "Blood pressure (systolic)", bmi: "BMI" };
-  const key = pref.find((k) => (rec.series[k] || []).length >= 2) || pref.find((k) => (rec.series[k] || []).length);
-  const card = $("trendCard");
-  if (!key) { card.hidden = true; return; }
-  card.hidden = false;
-  const pts = rec.series[key].slice(-12);
-  const W = 340, H = 170, L = 38, R = 14, T = 22, B = 26;
-  const vals = pts.map((p) => p.value), lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo || Math.abs(hi) * 0.2 || 1) * 0.25;
-  const y0 = lo - pad, y1 = hi + pad;
-  const t0 = toD(pts[0].date).getTime(), t1 = toD(pts[pts.length - 1].date).getTime();
-  const x = (d) => pts.length === 1 ? (L + W - R) / 2 : L + (W - L - R) * ((toD(d).getTime() - t0) / Math.max(1, t1 - t0));
-  const y = (v) => T + (H - T - B) * (1 - (v - y0) / (y1 - y0));
-  const P = pts.map((p) => [x(p.date), y(p.value), p]);
-  const line = P.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
-  const ticks = [y0 + (y1 - y0) * 0.1, (y0 + y1) / 2, y1 - (y1 - y0) * 0.1];
-  const col = { epic: "var(--epic)", document: "var(--upload)", cms: "var(--cms)" };
-  const unit = pts[pts.length - 1].unit || "";
-  card.innerHTML = `<h3>${names[key]} over time</h3><p class="note">${pts.length} reading${pts.length > 1 ? "s" : ""}${unit ? " · " + esc(unit) : ""} from ${[...new Set(pts.map((p) => SRC[p.source]))].join(" and ")}</p>
-  <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${names[key]}: ${pts.map((p) => p.value + " on " + fmt(p.date)).join(", ")}">
-    ${ticks.map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${+v.toFixed(1)}</text>`).join("")}
-    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/>
-    ${P.map(([px, py, p], i) => `<circle cx="${px}" cy="${py}" r="${i === P.length - 1 ? 6 : 4.5}" fill="${col[p.source]}" stroke="var(--surface)" stroke-width="2"/>${i === 0 || i === P.length - 1 ? `<text x="${Math.min(Math.max(px, L + 14), W - R - 14)}" y="${py - 11}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink)">${p.value}</text><text x="${Math.min(Math.max(px, L + 22), W - R - 22)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${fmtMY(p.date)}</text>` : ""}`).join("")}
-  </svg>
-  <div class="legend">${[...new Set(pts.map((p) => p.source))].map((s) => `<span><i style="background:${col[s]}"></i>${SRC[s]}</span>`).join("")}</div>`;
-}
-
-function renderRx(rec) {
-  const card = $("rxCard");
-  const meds = rec.medications.filter((m) => !m.oneTime).slice(0, 6);
-  if (!meds.length) { card.hidden = true; return; }
-  card.hidden = false;
-  const end = rec.asOf, start = new Date(toD(end).getTime() - 300 * 86400000).toISOString().slice(0, 10);
-  const span = (toD(end) - toD(start)) / 86400000;
-  const W = 340, L = 96, R = 10, rowH = 30, T = 8, H = T + meds.length * rowH + 22;
-  const x = (d) => L + (W - L - R) * (Math.max(0, Math.min(span, (toD(d) - toD(start)) / 86400000)) / span);
-  const addDays = (s, n) => new Date(toD(s).getTime() + n * 86400000).toISOString().slice(0, 10);
-  let rows = "";
-  meds.forEach((m, i) => {
-    const yy = T + i * rowH;
-    rows += `<text x="0" y="${yy + 15}" font-size="11" fill="var(--ink)">${esc(m.drug.slice(0, 14))}</text><rect x="${L}" y="${yy + 5}" width="${W - L - R}" height="14" rx="3" fill="var(--crit)" fill-opacity="0.16"/>`;
-    for (const f of m.fills) { const a = x(f.date), b = x(addDays(f.date, f.daysSupply || 30)); if (b > a) rows += `<rect x="${a.toFixed(1)}" y="${yy + 5}" width="${(b - a).toFixed(1)}" height="14" rx="3" fill="var(--cms)"/>`; }
-  });
-  card.innerHTML = `<h3>Medication supply, last 10 months</h3><p class="note">From CMS pharmacy claims. Each bar is a fill; red shows days with no medicine on hand.</p>
-    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Medication supply timeline">${rows}
-    <line x1="${x(end)}" x2="${x(end)}" y1="${T}" y2="${H - 20}" stroke="var(--ink)" stroke-dasharray="3 3"/>
-    <text x="${L}" y="${H - 6}" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${fmtMY(start)}</text>
-    <text x="${W - R}" y="${H - 6}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono, monospace">Today</text></svg>
-    <div class="legend"><span><i style="background:var(--cms)"></i>Supply on hand</span><span><i style="background:var(--crit);opacity:.3"></i>Gap</span></div>`;
-}
-
-/* ---------------- wiring ---------------- */
-document.addEventListener("click", async (e) => {
-  const b = e.target.closest("button"); if (!b) return;
-  if (b.dataset.go) go(b.dataset.go);
-  if (b.dataset.demo) {
-    await api(`/api/demo/${b.dataset.demo}`, { method: "POST" });
-    state[b.dataset.demo] = null; state.recs = null;
-    await refreshStatus(); renderReview();
-  }
-  if (b.dataset.disconnect) {
-    await api(`/auth/${b.dataset.disconnect}/disconnect`, { method: "POST" });
-    state[b.dataset.disconnect] = null; state.recs = null;
-    await refreshStatus(); renderReview();
-  }
-});
-$("fileIn").onchange = (e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; };
-const drop = $("drop");
-drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
-drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); });
-$("toRecs").onclick = () => go("recommendations");
-$("sampleDoc").onclick = async () => {
-  dropBusy(true, "Reading the sample lab report…");
-  try { await api("/api/document/sample", { method: "POST" }); await refreshStatus(); state.recs = null; dropBusy(false); go("review"); }
-  catch (e) { dropError(e.message); }
-};
-$("fullDemo").onclick = async () => {
-  dropBusy(true, "Loading the demo…");
-  try {
-    await api("/api/document/sample", { method: "POST" });
-    await api("/api/demo/epic", { method: "POST" });
-    await api("/api/demo/cms", { method: "POST" });
-    Object.assign(state, { epic: null, cms: null, record: null, recs: null });
-    await refreshStatus(); dropBusy(false); go("recommendations");
-  } catch (e) { dropError(e.message); }
-};
-$("backReview").onclick = () => go("review");
-$("regen").onclick = () => loadRecs(true);
-$("resetBtn").onclick = async () => { await api("/api/reset", { method: "POST" }); Object.assign(state, { epic: null, cms: null, record: null, recs: null }); await refreshStatus(); go("upload"); };
-
-(async () => {
-  const params = new URLSearchParams(location.search);
-  if (params.get("error")) { banner(params.get("error")); history.replaceState(null, "", location.pathname + location.hash); }
-  try { await refreshStatus(); } catch (e) { banner("Can't reach the Medivault server. Is it running?"); }
-  if (state.status) SRC.epic = ehrLabel();
-  if (state.status && !state.status.llmConfigured) banner("Demo mode: no AI model is configured, so documents are read by a built-in parser and recommendations come from built-in rules. Add LLM_API_KEY and LLM_MODEL to .env for AI.", "info");
-  const start = location.hash.slice(1);
-  go(VIEWS.includes(start) ? start : "upload", false);
-})();
-})();
-</script>
+<footer>
+  <div class="wrap">
+    <a class="logo" href="/" style="font-size:1.05rem"><span class="mark" style="width:26px;height:26px;border-radius:8px" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#111" style="width:15px;height:15px"><path d="M9.5 3h5v6.5H21v5h-6.5V21h-5v-6.5H3v-5h6.5z"/></svg></span>medivault</a>
+    <span>Demo project. Not medical advice. Sample data is fictional.</span>
+  </div>
+</footer>
 </body>
 </html>

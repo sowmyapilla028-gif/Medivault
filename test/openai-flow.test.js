@@ -66,7 +66,7 @@ test("OpenAI-compatible LLM + generic SMART EHR", async () => {
   const start = await call("/auth/epic/start");
   const provider = await fetch(start.headers.get("location"), { redirect: "manual" });
   const cb = new URL(provider.headers.get("location"));
-  assert.equal((await call(cb.pathname + cb.search)).headers.get("location"), "/#review");
+  assert.equal((await call(cb.pathname + cb.search)).headers.get("location"), "/app#review");
   const ehr = await (await call("/api/sources/epic")).json();
   assert.equal(ehr.patient.name, "Camila Lopez");
   assert.equal(mocks.seen.conditionQueries.at(-1).category, undefined);

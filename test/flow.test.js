@@ -62,7 +62,7 @@ test("full journey: upload, connect Epic and CMS, recommendations", async () => 
   // 2. Epic: SMART discovery, aud param, public client with PKCE
   const epic = await signIn("epic");
   assert.equal(epic.authUrl.searchParams.get("aud"), `${mocks.base}/epic/fhir`);
-  assert.equal(epic.done.headers.get("location"), "/#review");
+  assert.equal(epic.done.headers.get("location"), "/app#review");
   const epicTok = mocks.seen.tokenRequests.find((t) => t.prefix === "epic");
   assert.equal(epicTok.body.client_id, "epic-client");
   assert.equal(epicTok.auth, null);
@@ -77,7 +77,7 @@ test("full journey: upload, connect Epic and CMS, recommendations", async () => 
   // 3. CMS: confidential client (Basic auth), PDE claims
   const cms = await signIn("cms");
   assert.equal(cms.authUrl.searchParams.get("aud"), null);
-  assert.equal(cms.done.headers.get("location"), "/#review");
+  assert.equal(cms.done.headers.get("location"), "/app#review");
   assert.ok(mocks.seen.tokenRequests.find((t) => t.prefix === "cms").auth.startsWith("Basic "));
 
   // 4. Combined record

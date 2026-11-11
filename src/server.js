@@ -92,7 +92,7 @@ export function createApp({ fetchImpl = fetch } = {}) {
   /* ---------- OAuth ---------- */
   app.get("/auth/:source/start", wrap(async (req, res) => {
     const src = sourceParam(req, res); if (!src) return;
-    if (!isConfigured(src.id)) return res.redirect(`/?error=${encodeURIComponent(`${src.label} isn't configured on the server. Add its client ID to .env.`)}#review`);
+    if (!isConfigured(src.id)) return res.redirect(`/app?error=${encodeURIComponent(`${src.label} isn't configured on the server. Add its client ID to .env.`)}#review`);
     const endpoints = await resolveEndpoints(src, fetchImpl);
     const authReq = newAuthRequest();
     req.session.oauth = { ...(req.session.oauth || {}), [src.id]: { state: authReq.state, verifier: authReq.verifier } };
@@ -101,7 +101,7 @@ export function createApp({ fetchImpl = fetch } = {}) {
 
   app.get("/auth/:source/callback", wrap(async (req, res) => {
     const src = sourceParam(req, res); if (!src) return;
-    const back = (msg) => res.redirect(msg ? `/?error=${encodeURIComponent(msg)}#review` : "/#review");
+    const back = (msg) => res.redirect(msg ? `/app?error=${encodeURIComponent(msg)}#review` : "/app#review");
     if (req.query.error) return back(`${src.label}: ${req.query.error_description || req.query.error}`);
     const pending = req.session.oauth?.[src.id];
     if (!pending || pending.state !== req.query.state) return back(`${src.label} sign-in expired or didn't match. Try connecting again.`);
@@ -187,6 +187,7 @@ export function createApp({ fetchImpl = fetch } = {}) {
   app.post("/api/reset", (req, res) => req.session.destroy(() => res.json({ ok: true })));
 
   /* ---------- static frontend ---------- */
+  app.get("/app", (req, res) => res.sendFile(path.join(here, "..", "public", "app.html")));
   app.use(express.static(path.join(here, "..", "public")));
 
   app.use((err, req, res, _next) => {
@@ -209,6 +210,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log(`EHR redirect URI: ${config.sources.epic.redirectUri}`);
     console.log(`CMS redirect URI:  ${config.sources.cms.redirectUri}`);
     if (missing.length) console.warn(`Not configured (use the "Use demo data" buttons instead): ${missing.join(", ")}`);
-    console.log(`Open ${config.appUrl} in your browser.`);
+    console.log(`Open ${config.appUrl} for the landing page, or ${config.appUrl}/app for the app.`);
   });
 }
