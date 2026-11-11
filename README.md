@@ -1,16 +1,65 @@
 # Medivault
 
-Medivault combines three sources into one view of a patient and asks an AI model for holistic recommendations:
+**Your health data, made simpler and smarter.** Medivault combines a patient's latest lab report, their EHR record and their insurer's pharmacy claims into one picture, explains what needs attention with evidence from each source, and has a care agent book a specialist follow-up when the new results call for one.
 
-1. **Upload**: the patient uploads a lab report or visit summary (PDF, photo or text). The AI model reads it into structured results.
-2. **Review**: the patient signs in to
-   - **An EHR** over SMART on FHIR R4 (the free SMART Health IT sandbox by default, or Epic): Patient, Condition, Observation (labs and vitals), AllergyIntolerance, Immunization
-   - **CMS Blue Button 2.0** (Insurer A): Patient and Part D pharmacy fills (`ExplanationOfBenefit?type=pde`)
-3. **Recommendations**: the server computes lab trends and refill gaps from the combined record, then the AI model writes prioritized recommendations, each citing the source and value it came from.
+![Medivault landing page](docs/screenshots/landing.jpg)
 
-No demo data is built in. Everything shown comes from the uploaded file and the live sandbox APIs.
+## Team
 
-## Step 4: the follow-up agent
+| Name | Role |
+|---|---|
+| John | Business case |
+| Richard | Solution architecture |
+| Sowmya | Development |
+
+## The problem
+
+A patient's health story is split across systems that never talk to each other:
+
+- **The doctor's EHR** knows diagnoses, lab history, allergies and vaccines, but not whether prescriptions were actually filled.
+- **The insurer** knows every prescription that was picked up (and when it ran out), but not the lab results.
+- **The newest lab report** often arrives as a PDF that sits in an inbox or a patient portal, outside both.
+
+So the most important patterns are invisible to everyone: an A1c that keeps rising **because** the metformin refills stopped, an antibiotic dispensed to someone with a recorded penicillin allergy, a kidney marker creeping up while blood pressure pills are taken on time. Patients see three disconnected apps, and nobody turns the combined picture into a next step.
+
+## The solution
+
+Medivault walks the patient through four steps:
+
+| Step | What happens |
+|---|---|
+| **1. Upload** | The patient uploads their latest lab report (PDF, photo or text). An AI model, or the built-in parser in demo mode, reads every value, flag and reference range. |
+| **2. Review** | The patient checks what was read and signs in to their **EHR** (SMART on FHIR) and their **insurer** (CMS Blue Button pharmacy claims). Medivault matches all three sources to the same person by name and date of birth. |
+| **3. Recommendations** | The server computes lab trends, refill gaps and safety conflicts across the sources, then produces prioritized recommendations. Clickable **Act now / Soon / Routine** tabs show a checklist of exactly what to do, by when, and the evidence behind each item. |
+| **4. Follow-up agent** | If the new results, read with the patient's history, cross a referral rule (for example A1c 8%+ and rising), a care agent alerts the patient, checks their calendar, finds specialist times, and after the patient approves, calls the clinic, adds the visit to the calendar and emails the patient and the specialist. If no rule is crossed, it does nothing. |
+
+### Screens
+
+| | |
+|---|---|
+| **1. Upload**<br>![Upload](docs/screenshots/1-upload.jpg) | **2. Review and connect**<br>![Review](docs/screenshots/2-review.jpg) |
+| **3. Recommendations with action tabs**<br>![Recommendations](docs/screenshots/3-recommendations.jpg) | **4. Follow-up agent: booked visit, call transcript, calendar and outbox**<br>![Follow-up](docs/screenshots/4-follow-up.jpg) |
+
+The demo patient in the screenshots is fictional (demo data mode).
+
+## Tools used
+
+| Area | Tools |
+|---|---|
+| Backend | Node.js 20+, Express, express-session, Multer (uploads) |
+| Health data standards | HL7 **FHIR R4**, **SMART on FHIR** (OAuth 2.0 authorization code + PKCE), US Core resources: Patient, Condition, Observation, AllergyIntolerance, Immunization; FHIR Slot and Appointment for scheduling |
+| EHR source | **Epic** sandbox (fhir.epic.com) or the **SMART Health IT** sandbox (launch.smarthealthit.org) |
+| Insurer source | **CMS Blue Button 2.0** sandbox: Part D prescription drug events (`ExplanationOfBenefit?type=pde`) |
+| AI | Pluggable: any OpenAI-compatible Chat Completions API (**NEAR AI**, **OpenCode Zen**, OpenRouter, Ollama) or **Claude** via the Anthropic SDK; schema-validated JSON output with Zod |
+| Documents | unpdf (PDF text extraction); built-in lab report parser for demo mode |
+| Agent | Server-Sent Events for live step streaming, human-approval gate before any action, iCalendar (`.ics`) invites |
+| Frontend | Plain HTML, CSS and JavaScript (no framework); Inter and Inter Tight fonts; hand-built SVG charts |
+| Testing | Node's built-in test runner with local mock servers for the EHR, CMS, Claude and OpenAI-compatible APIs (19 tests); Playwright for UI checks |
+| Collaboration | GitHub, Claude Code |
+
+## How it works
+
+### The follow-up agent in detail
 
 After the recommendations, a care agent checks whether a specialist visit is needed. It acts **only when the newly uploaded results, read with the patient's history, cross a referral rule**. Otherwise it reports "no follow-up needed" and does nothing else.
 
@@ -35,7 +84,7 @@ When triggered, the agent streams each step to the page:
 
 Endpoints: `GET /api/agent/triage`, `GET /api/agent/run` (Server-Sent Events), `GET /api/agent/book?slot=…` (SSE), `GET /api/agent/appointment.ics`. Set `PATIENT_EMAIL` to show a real address on the patient email.
 
-## How it works
+### Architecture
 
 ```
 browser ──upload──▶ /api/document ──PDF/image──▶ AI model (JSON) ──▶ results
@@ -81,7 +130,18 @@ cp .env.example .env
 
 Then fill in `.env`:
 
-### 1. AI model (OpenCode Zen or any OpenAI-compatible API)
+### 1. AI model (optional: NEAR AI, OpenCode Zen or any OpenAI-compatible API)
+
+Skip this to run in demo mode with the built-in parser and rules. For **NEAR AI** (the key you already use in OpenCode):
+
+```
+LLM_PROVIDER=openai
+LLM_BASE_URL=https://cloud-api.near.ai/v1
+LLM_API_KEY=your-near-ai-key
+LLM_MODEL=a-model-id-from-your-near-ai-account
+```
+
+For **OpenCode Zen**:
 1. Get an API key: sign in at https://opencode.ai, open Zen, add billing/credits, and create an API key. Put it in `LLM_API_KEY`.
 2. List the models your key can use:
    ```bash
