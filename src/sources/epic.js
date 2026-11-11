@@ -53,13 +53,13 @@ export function normalizeEpic({ patient, conditions, labs, vitals, allergies, im
   return { patient: patientSummary(patient), facts };
 }
 
-export async function fetchEpic({ base, token, patientId, fetchImpl }) {
-  if (!patientId) throw new Error("Epic did not return a patient id. Check the app's launch/patient scope.");
+export async function fetchEpic({ base, token, patientId, fetchImpl, conditionCategory = "problem-list-item" }) {
+  if (!patientId) throw new Error("The EHR did not return a patient id. Check the app's launch/patient scope.");
   const fhir = fhirClient({ base, token, fetchImpl });
   const p = { patient: patientId };
   const { data, warnings } = await settle({
     patient: () => fhir.read("Patient", patientId),
-    conditions: () => fhir.search("Condition", { ...p, category: "problem-list-item" }),
+    conditions: () => fhir.search("Condition", { ...p, ...(conditionCategory ? { category: conditionCategory } : {}) }),
     labs: () => fhir.search("Observation", { ...p, category: "laboratory" }),
     vitals: () => fhir.search("Observation", { ...p, category: "vital-signs" }),
     allergies: () => fhir.search("AllergyIntolerance", p),

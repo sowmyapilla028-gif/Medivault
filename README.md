@@ -1,12 +1,12 @@
 # Medivault
 
-Medivault combines three sources into one view of a patient and asks Claude for holistic recommendations:
+Medivault combines three sources into one view of a patient and asks an AI model for holistic recommendations:
 
-1. **Upload**: the patient uploads a lab report or visit summary (PDF, photo or text). Claude reads it into structured results.
+1. **Upload**: the patient uploads a lab report or visit summary (PDF, photo or text). The AI model reads it into structured results.
 2. **Review**: the patient signs in to
-   - **Epic** (SMART on FHIR R4): Patient, Condition (problem list), Observation (labs and vitals), AllergyIntolerance, Immunization
+   - **An EHR** over SMART on FHIR R4 (the free SMART Health IT sandbox by default, or Epic): Patient, Condition, Observation (labs and vitals), AllergyIntolerance, Immunization
    - **CMS Blue Button 2.0** (Insurer A): Patient and Part D pharmacy fills (`ExplanationOfBenefit?type=pde`)
-3. **Recommendations**: the server computes lab trends and refill gaps from the combined record, then Claude writes prioritized recommendations, each citing the source and value it came from.
+3. **Recommendations**: the server computes lab trends and refill gaps from the combined record, then the AI model writes prioritized recommendations, each citing the source and value it came from.
 
 No demo data is built in. Everything shown comes from the uploaded file and the live sandbox APIs.
 
@@ -22,7 +22,8 @@ browser ──────────▶ /api/recommendations: record + compute
 - Access tokens stay on the server (in the session); the browser only gets a session cookie.
 - Epic endpoints are found with SMART discovery (`/.well-known/smart-configuration`); Epic gets the required `aud` parameter.
 - CMS is a confidential client (client secret sent with HTTP Basic). Epic can be public (PKCE only) or confidential.
-- Claude calls use the official Anthropic SDK with structured outputs, so the server always gets validated JSON.
+- The AI model is pluggable: any OpenAI-compatible Chat Completions API (OpenCode Zen, OpenRouter, Groq, a local Ollama) or Claude. Replies are validated against a schema and re-asked if they don't fit.
+- PDFs are read to text on the server, so models without PDF support work. Photos need a vision model.
 
 | Path | What it does |
 |---|---|
@@ -31,7 +32,7 @@ browser ──────────▶ /api/recommendations: record + compute
 | `src/fhir.js` | FHIR read/search with Bundle paging |
 | `src/sources/epic.js`, `src/sources/cms.js` | Fetch and normalize each source |
 | `src/analysis.js` | Lab trends, medication supply and refill gaps, identity check |
-| `src/llm.js` | Claude: document extraction and recommendations |
+| `src/llm.js` | AI model calls: document extraction and recommendations |
 | `public/index.html` | The three-step UI |
 | `test/` | Tests that run the full flow against local mock servers |
 
@@ -46,17 +47,22 @@ cp .env.example .env
 
 Then fill in `.env`:
 
-### 1. Anthropic API key
-Create a key at https://platform.claude.com and set `ANTHROPIC_API_KEY`.
+### 1. AI model (OpenCode Zen or any OpenAI-compatible API)
+1. Get an API key: sign in at https://opencode.ai, open Zen, add billing/credits, and create an API key. Put it in `LLM_API_KEY`.
+2. List the models your key can use:
+   ```bash
+   curl https://opencode.ai/zen/v1/models -H "Authorization: Bearer YOUR_KEY"
+   ```
+   (In Windows PowerShell type `curl.exe` instead of `curl`.)
+3. Pick a model that is served through `/chat/completions` (OpenCode's docs list which endpoint each model uses; GPT and Claude models on Zen use other endpoints) and put its ID in `LLM_MODEL`.
+4. If that model can read images, set `LLM_VISION=true` so photo uploads work.
 
-### 2. Epic sandbox app
-1. Sign up at https://fhir.epic.com and choose **Build Apps → Create**.
-2. Application audience: **Patients**.
-3. Incoming APIs (R4): Patient.Read, Condition.Search (Problems), Observation.Search (Labs), Observation.Search (Vitals), AllergyIntolerance.Search, Immunization.Search.
-4. Redirect URI: `http://localhost:3000/auth/epic/callback` (or `${APP_URL}/auth/epic/callback`).
-5. Leave it as a public client (no secret) unless you need a confidential one, then save.
-6. Copy the **Non-Production Client ID** into `EPIC_CLIENT_ID`. New client IDs can take a while to become active in the sandbox.
-7. Sign in with one of Epic's sandbox test patients (MyChart usernames and passwords are on fhir.epic.com under the sandbox test data docs).
+Other providers work the same way: set `LLM_BASE_URL` to their OpenAI-compatible base URL (for example `https://openrouter.ai/api/v1`, or `http://localhost:11434/v1` for Ollama, which needs no key). To use Claude instead, set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`.
+
+### 2. EHR: nothing to do
+With no EHR settings, Medivault uses the public **SMART Health IT sandbox** (https://launch.smarthealthit.org). It needs no registration and has synthetic patients. When you click Connect, it shows a demo login and a patient picker: pick any patient.
+
+To use Epic later, register an app at https://fhir.epic.com (audience: Patients; redirect URI `http://localhost:3000/auth/epic/callback`; APIs: Patient.Read, Condition.Search (Problems), Observation.Search (Labs and Vitals), AllergyIntolerance.Search, Immunization.Search) and set `EPIC_CLIENT_ID`.
 
 ### 3. CMS Blue Button sandbox app
 1. Sign up at https://sandbox.bluebutton.cms.gov and create an application.
@@ -79,11 +85,11 @@ Open http://localhost:3000. The server prints the exact redirect URIs it uses an
 npm test
 ```
 
-The tests start local stand-ins for Epic, CMS and the Claude API and run the whole journey: upload, both OAuth flows (including PKCE and state checks), FHIR paging, refill-gap math and the recommendation request.
+The tests start local stand-ins for the EHR, CMS, Claude and an OpenAI-compatible API, and run the whole journey: upload, both OAuth flows (including PKCE and state checks), FHIR paging, refill-gap math and the recommendation request.
 
 ## Things to know
 
-- **The sandboxes hold different people.** The Epic test patient, the Blue Button beneficiary and the person on your PDF are not the same person. Medivault compares name and date of birth, shows a warning on the Review page, and Claude lists the mismatch under "Before you read these". A production build would link accounts to one verified user.
+- **The sandboxes hold different people.** The EHR test patient, the Blue Button beneficiary and the person on your PDF are not the same person. Medivault compares name and date of birth, shows a warning on the Review page, and the AI model lists the mismatch under "Before you read these". A production build would link accounts to one verified user.
 - **Sessions are in memory.** Restarting the server signs everyone out. Use a persistent session store (for example Redis) before deploying.
 - **Not medical advice.** Recommendations are decision support for a demo.
-- Uploaded files are sent to the Claude API and not stored on disk.
+- Uploaded files (or their text) are sent to your AI provider and not stored on disk.

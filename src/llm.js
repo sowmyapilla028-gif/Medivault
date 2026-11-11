@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { config } from "./config.js";
+import { extractText, getDocumentProxy } from "unpdf";
 
 let client;
 const getClient = () => (client ||= new Anthropic());
@@ -16,7 +17,7 @@ export class LlmError extends Error {
   constructor(message, status = 502) { super(message); this.status = status; }
 }
 
-async function structured({ system, content, schema, effort }) {
+async function structuredAnthropic({ system, content, schema, effort }) {
   let response;
   try {
     response = await getClient().beta.messages.parse({
@@ -41,6 +42,75 @@ async function structured({ system, content, schema, effort }) {
   if (response.stop_reason === "max_tokens") throw new LlmError("Claude's answer was cut off. Try a shorter document.", 502);
   if (!response.parsed_output) throw new LlmError("Claude's answer didn't match the expected format.", 502);
   return response.parsed_output;
+}
+
+/* ---------------- OpenAI-compatible provider (OpenCode Zen, OpenRouter, Groq, Ollama...) ---------------- */
+
+function parseJsonReply(text) {
+  let t = String(text || "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) t = fence[1].trim();
+  const start = t.search(/[{[]/), end = Math.max(t.lastIndexOf("}"), t.lastIndexOf("]"));
+  if (start > 0 || end < t.length - 1) t = t.slice(Math.max(0, start), end + 1);
+  return JSON.parse(t);
+}
+
+async function chatCompletion(body) {
+  const { baseUrl, apiKey } = config.llm;
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    throw new LlmError(`Couldn't reach the LLM at ${baseUrl} (${err.message}).`, 502);
+  }
+  const text = await res.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch {}
+  if (!res.ok) {
+    const msg = json?.error?.message || json?.message || text.slice(0, 300);
+    const err = new LlmError(`LLM error ${res.status}: ${msg}`, res.status === 401 || res.status === 403 ? 500 : res.status === 429 ? 429 : 502);
+    err.upstreamStatus = res.status;
+    throw err;
+  }
+  const choice = json?.choices?.[0];
+  if (!choice) throw new LlmError("The LLM returned no answer.", 502);
+  return { text: choice.message?.content ?? "", finish: choice.finish_reason };
+}
+
+async function structuredOpenAI({ system, userParts, schema }) {
+  if (!config.llm.model) throw new LlmError("Set LLM_MODEL in .env to a model your provider offers.", 500);
+  const jsonSchema = JSON.stringify(z.toJSONSchema(schema));
+  const messages = [
+    { role: "system", content: `${system}\n\nReply with only one JSON object, no prose and no code fences. It must validate against this JSON Schema:\n${jsonSchema}` },
+    { role: "user", content: userParts.length === 1 && userParts[0].type === "text" ? userParts[0].text : userParts },
+  ];
+  let useJsonMode = true;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let reply;
+    try {
+      reply = await chatCompletion({
+        model: config.llm.model, messages, max_tokens: 16000,
+        ...(useJsonMode ? { response_format: { type: "json_object" } } : {}),
+      });
+    } catch (err) {
+      // Some providers/models reject response_format; retry once without it.
+      if (useJsonMode && err.upstreamStatus === 400 && /response_format|json/i.test(err.message)) { useJsonMode = false; continue; }
+      throw err;
+    }
+    if (reply.finish === "length") throw new LlmError("The LLM's answer was cut off. Try a shorter document or a model with a larger output limit.", 502);
+    let problem;
+    try {
+      const parsed = schema.safeParse(parseJsonReply(reply.text));
+      if (parsed.success) return parsed.data;
+      problem = parsed.error.issues.slice(0, 5).map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    } catch (e) { problem = `not valid JSON (${e.message})`; }
+    messages.push({ role: "assistant", content: reply.text }, { role: "user", content: `That reply was ${problem}. Reply again with only the corrected JSON object.` });
+  }
+  throw new LlmError("The LLM's answer didn't match the expected format after 3 tries. Try a stronger model.", 502);
 }
 
 /* ---------------- Document extraction ---------------- */
@@ -71,23 +141,45 @@ If the document is not a medical document, return empty arrays and say so in the
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
+async function pdfToText(buffer) {
+  try {
+    const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    const { text } = await extractText(pdf, { mergePages: true });
+    return text || "";
+  } catch (err) {
+    throw new LlmError(`Couldn't read that PDF (${err.message}).`, 422);
+  }
+}
+
 export async function extractDocument({ buffer, mimetype, filename }) {
-  let block;
-  if (mimetype === "application/pdf") {
-    block = { type: "document", source: { type: "base64", media_type: "application/pdf", data: buffer.toString("base64") }, title: filename };
-  } else if (IMAGE_TYPES.has(mimetype)) {
-    block = { type: "image", source: { type: "base64", media_type: mimetype, data: buffer.toString("base64") } };
-  } else if (mimetype.startsWith("text/") || mimetype === "application/json") {
-    block = { type: "text", text: `Document "${filename}":\n\n${buffer.toString("utf8")}` };
-  } else {
+  const isText = mimetype.startsWith("text/") || mimetype === "application/json";
+  if (mimetype !== "application/pdf" && !IMAGE_TYPES.has(mimetype) && !isText) {
     throw new LlmError(`Unsupported file type ${mimetype}. Upload a PDF, image or text file.`, 415);
   }
-  return structured({
-    system: DOC_SYSTEM,
-    content: [block, { type: "text", text: "Transcribe this document into the required JSON structure." }],
-    schema: DocumentSchema,
-    effort: "low",
-  });
+  const ask = "Transcribe this document into the required JSON structure.";
+
+  if (config.llm.provider === "anthropic") {
+    const block = mimetype === "application/pdf"
+      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: buffer.toString("base64") }, title: filename }
+      : IMAGE_TYPES.has(mimetype)
+        ? { type: "image", source: { type: "base64", media_type: mimetype, data: buffer.toString("base64") } }
+        : { type: "text", text: `Document "${filename}":\n\n${buffer.toString("utf8")}` };
+    return structuredAnthropic({ system: DOC_SYSTEM, content: [block, { type: "text", text: ask }], schema: DocumentSchema, effort: "low" });
+  }
+
+  // OpenAI-compatible: send PDF text (read here), or the image if the model has vision.
+  let parts;
+  if (IMAGE_TYPES.has(mimetype)) {
+    if (!config.llm.vision) throw new LlmError("Photos need a model that can read images. Set LLM_VISION=true with a vision model, or upload a PDF or text file.", 422);
+    parts = [{ type: "text", text: ask }, { type: "image_url", image_url: { url: `data:${mimetype};base64,${buffer.toString("base64")}` } }];
+  } else {
+    const text = mimetype === "application/pdf" ? await pdfToText(buffer) : buffer.toString("utf8");
+    if (text.replace(/\s/g, "").length < 20) {
+      throw new LlmError("This PDF has no readable text (it may be a scan). Upload a text-based PDF, or a photo with a vision model.", 422);
+    }
+    parts = [{ type: "text", text: `${ask}\n\nDocument "${filename}":\n\n${text.slice(0, 200000)}` }];
+  }
+  return structuredOpenAI({ system: DOC_SYSTEM, userParts: parts, schema: DocumentSchema });
 }
 
 /* ---------------- Recommendations ---------------- */
@@ -111,7 +203,7 @@ export const RecommendationsSchema = z.object({
 
 const REC_SYSTEM = `You are a clinical decision-support assistant inside a patient-facing app. You receive one patient's combined record from three sources:
 - "document": a file the patient just uploaded (read by an extraction step).
-- "epic": their EHR via Epic FHIR (problem list, labs, vitals, allergies, immunizations).
+- "epic": their EHR via SMART on FHIR (problem list, labs, vitals, allergies, immunizations).
 - "cms": their Medicare Part D pharmacy claims via CMS Blue Button (what was actually filled, with days of supply).
 The server has already computed lab trends and medication supply (refill gaps, proportion of days covered). Trust those numbers; do not recompute them.
 
@@ -152,5 +244,8 @@ ${meds || "No pharmacy claims."}
 CLINICAL FACTS (date | source | type | item | value | flag | reference):
 ${clinical || "none"}`;
 
-  return structured({ system: REC_SYSTEM, content: [{ type: "text", text: content }], schema: RecommendationsSchema, effort: "high" });
+  if (config.llm.provider === "anthropic") {
+    return structuredAnthropic({ system: REC_SYSTEM, content: [{ type: "text", text: content }], schema: RecommendationsSchema, effort: "high" });
+  }
+  return structuredOpenAI({ system: REC_SYSTEM, userParts: [{ type: "text", text: content }], schema: RecommendationsSchema });
 }

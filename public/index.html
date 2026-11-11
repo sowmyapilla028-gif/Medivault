@@ -278,7 +278,7 @@ details.dev summary { cursor: pointer; font-weight: 600; font-size: .9rem; color
     <section class="view" id="view-upload" aria-labelledby="upTitle">
       <div class="upload-hero">
         <h1 id="upTitle">Start with your latest health document</h1>
-        <p class="lede">Upload a lab report or visit summary. Claude reads it, then we pull in your Epic health record and your Medicare pharmacy claims so the recommendations see the whole picture.</p>
+        <p class="lede">Upload a lab report or visit summary. AI reads it, then we pull in your health record and your Medicare pharmacy claims so the recommendations see the whole picture.</p>
         <div class="dropzone" id="drop">
           <div class="doc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg></div>
           <div id="dropIdle" style="display:grid;gap:12px;justify-items:center">
@@ -289,11 +289,11 @@ details.dev summary { cursor: pointer; font-weight: 600; font-size: .9rem; color
               <input id="fileIn" type="file" accept=".pdf,.txt,.json,image/jpeg,image/png,image/webp" hidden>
             </div>
           </div>
-          <div class="reading" id="dropBusy" hidden><span class="spinner"></span><span id="dropBusyText">Claude is reading your document…</span></div>
+          <div class="reading" id="dropBusy" hidden><span class="spinner"></span><span id="dropBusyText">Reading your document…</span></div>
           <p class="upload-error" id="dropErr" hidden></p>
         </div>
         <div class="next-steps">
-          <div><b>Review</b>Check what Claude read and connect Epic and Medicare.</div>
+          <div><b>Review</b>Check what was read and connect your health record and Medicare.</div>
           <div><b>Combine</b>Your document, clinical record and pharmacy fills are matched to you.</div>
           <div><b>Recommend</b>See what needs attention, with the evidence for each.</div>
         </div>
@@ -305,7 +305,7 @@ details.dev summary { cursor: pointer; font-weight: 600; font-size: .9rem; color
       <div class="page-head">
         <div style="display:grid;gap:6px">
           <h1 id="rvTitle">Review and connect</h1>
-          <p>Check what Claude read from your document, then sign in to Epic and Medicare to add your records.</p>
+          <p>Check what was read from your document, then sign in to your health record and Medicare to add your records.</p>
         </div>
       </div>
       <div class="review-grid">
@@ -329,7 +329,7 @@ details.dev summary { cursor: pointer; font-weight: 600; font-size: .9rem; color
     <section class="view" id="view-recommendations" aria-labelledby="rcTitle" hidden>
       <div id="recLoading" class="card loading-card" hidden>
         <span class="spinner"></span>
-        <h2 style="font-size:1.1rem">Claude is reviewing your combined record</h2>
+        <h2 style="font-size:1.1rem" id="recLoadingTitle">Reviewing your combined record</h2>
         <p class="muted" id="recLoadingText">This usually takes 30–90 seconds.</p>
       </div>
       <div id="recError" hidden></div>
@@ -371,7 +371,9 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const TICK = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--surface)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
 const TICK_OK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
 const ARROW = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
-const SRC = { document: "Your upload", epic: "Epic", cms: "CMS pharmacy" };
+const SRC = { document: "Your upload", epic: "EHR", cms: "CMS pharmacy" };
+const ehrLabel = () => state.status?.sources.epic.label || "EHR";
+const llmName = () => state.status?.llmLabel || "AI";
 
 async function api(path, opts = {}) {
   const res = await fetch(path, { credentials: "same-origin", ...opts });
@@ -416,14 +418,14 @@ function renderStepper() {
   $("stepper").innerHTML = VIEWS.map((v, i) => `<li><button type="button" data-go="${v}" ${allowed[v] ? "" : "disabled"} class="${i < idx ? "done" : ""}" ${v === state.view ? 'aria-current="step"' : ""}><span class="num">${i < idx ? "✓" : i + 1}</span>${labels[v]}</button></li>`).join("");
 }
 
-async function refreshStatus() { state.status = await api("/api/status"); return state.status; }
+async function refreshStatus() { state.status = await api("/api/status"); SRC.epic = ehrLabel(); return state.status; }
 
 /* ---------------- upload ---------------- */
 function dropBusy(on, msg) { $("dropIdle").hidden = on; $("dropBusy").hidden = !on; if (msg) $("dropBusyText").textContent = msg; if (on) $("dropErr").hidden = true; }
 function dropError(msg) { dropBusy(false); $("dropErr").hidden = false; $("dropErr").textContent = msg; }
 async function handleFile(file) {
   if (file.size > 25 * 1024 * 1024) return dropError("That file is larger than 25 MB.");
-  dropBusy(true, `Claude is reading ${file.name}…`);
+  dropBusy(true, `${llmName()} is reading ${file.name}…`);
   const fd = new FormData(); fd.append("file", file);
   try {
     await api("/api/document", { method: "POST", body: fd });
@@ -440,7 +442,7 @@ function docCard() {
   const results = d.results || [];
   return `<div class="card-head"><div class="who"><span class="logo upload">DOC</span><div><h2>Your document</h2>
       <p class="sub">${esc(d.name)} · ${esc(d.documentType)}${d.documentDate ? " · " + fmt(d.documentDate) : ""}${d.patientName ? " · " + esc(d.patientName) : ""}</p></div></div>
-      <span class="status on"><span class="dot"></span>${results.length} result${results.length === 1 ? "" : "s"} read by Claude</span></div>
+      <span class="status on"><span class="dot"></span>${results.length} result${results.length === 1 ? "" : "s"} read by ${esc(llmName())}</span></div>
     <p style="font-size:.92rem">${esc(d.summary)}</p>
     ${results.length ? `<div class="values">${results.map((r) => `<div class="value"><span class="name">${esc(r.name)}</span>
       <span class="num">${esc(r.valueText || (r.value ?? "—"))}<small>${esc(r.unit || "")}</small></span>
@@ -469,16 +471,16 @@ function connectBlock(key, scopes, btn) {
   return `<div class="connect-panel"><div class="scopes">${scopes.map((x) => `<span class="scope">${x}</span>`).join("")}</div>
     ${s.error ? `<div class="warn-box">${esc(s.error)}</div>` : ""}
     <div><a class="btn" href="/auth/${key}/start">${btn}</a></div>
-    <p class="empty-note">You'll sign in on ${key === "epic" ? "Epic's MyChart sandbox" : "Medicare.gov's sandbox"} and come back here.</p></div>`;
+    <p class="empty-note">You'll sign in on ${key === "epic" ? esc(ehrLabel()) + "'s sandbox (pick any test patient)" : "Medicare.gov's sandbox"} and come back here.</p></div>`;
 }
 const li = (a, b) => `<li><span>${a}</span><span class="d">${b}</span></li>`;
 const group = (title, items, wide) => `<div class="group${wide ? " wide" : ""}"><h3>${title} <span class="mono">${items.length}</span></h3>${items.length ? `<ul>${items.join("")}</ul>` : `<p class="empty-note">None on file</p>`}</div>`;
 const valueOf = (f) => f.valueText || (f.value != null ? `<b>${esc(f.value)}</b> ${esc(f.unit || "")}` : "");
 
 function epicCard() {
-  const head = sourceHead("epic", "EHR", "Epic health record", "Problem list, labs, vitals, allergies and vaccines");
-  if (!connected("epic")) return head + connectBlock("epic", ["Patient", "Condition", "Observation · labs", "Observation · vitals", "AllergyIntolerance", "Immunization"], "Connect Epic");
-  if (!state.epic) return head + `<div class="reading"><span class="spinner"></span>Loading your Epic record…</div>`;
+  const head = sourceHead("epic", "EHR", `${esc(ehrLabel())} health record`, "Conditions, labs, vitals, allergies and vaccines");
+  if (!connected("epic")) return head + connectBlock("epic", ["Patient", "Condition", "Observation · labs", "Observation · vitals", "AllergyIntolerance", "Immunization"], `Connect ${esc(ehrLabel())}`);
+  if (!state.epic) return head + `<div class="reading"><span class="spinner"></span>Loading your health record…</div>`;
   const F = [...state.epic.facts].sort((x, y) => (y.date || "").localeCompare(x.date || "")), pick = (k) => F.filter((f) => f.kind === k);
   const latest = (list) => { const seen = new Set(); return list.filter((f) => { const k = f.code || f.label; if (seen.has(k)) return false; seen.add(k); return true; }); };
   const labs = latest(pick("lab")), vitals = latest(pick("vital"));
@@ -490,7 +492,7 @@ function epicCard() {
       ${group(`Lab results (latest of ${pick("lab").length})`, labs.slice(0, 12).map((f) => li(`${esc(f.label)} ${valueOf(f)}`, fmtMY(f.date))))}
       ${group(`Vitals (latest of ${pick("vital").length})`, vitals.slice(0, 10).map((f) => li(`${esc(f.label)} ${valueOf(f)}`, fmtMY(f.date))))}
       ${group("Vaccines", pick("immunization").map((f) => li(esc(f.label), fmt(f.date))), true)}
-    </div><div class="meta-line"><button class="linkish" type="button" data-disconnect="epic">Disconnect Epic</button></div>`;
+    </div><div class="meta-line"><button class="linkish" type="button" data-disconnect="epic">Disconnect ${esc(ehrLabel())}</button></div>`;
 }
 
 function cmsCard() {
@@ -515,7 +517,7 @@ async function renderReview() {
     $("epicCard").innerHTML = epicCard();
     $("cmsCard").innerHTML = cmsCard();
     const items = [[true, "Document read", state.status.document.documentType],
-      [connected("epic"), "Epic health record", "Clinical data"], [connected("cms"), "CMS pharmacy claims", "Prescription fills"]];
+      [connected("epic"), `${ehrLabel()} health record`, "Clinical data"], [connected("cms"), "CMS pharmacy claims", "Prescription fills"]];
     $("readyList").innerHTML = items.map(([ok, a, b]) => `<li><span class="tick ${ok ? "yes" : ""}">${ok ? TICK : ""}</span><span><b>${esc(a)}</b><br><span class="muted" style="font-size:.82rem">${esc(b)}</span></span></li>`).join("");
     $("toRecs").disabled = !canRecs();
     $("readyNote").textContent = canRecs() ? (connected("epic") && connected("cms") ? "" : "You can continue now, but connecting both gives better recommendations.") : "Connect at least one record to continue.";
@@ -537,6 +539,7 @@ async function renderReview() {
 async function loadRecs(regenerate) {
   if (state.recs && !regenerate) return renderRecs();
   $("recLoading").hidden = false; $("recBody").hidden = true; $("recError").hidden = true;
+  $("recLoadingTitle").textContent = `${llmName()} is reviewing your combined record`;
   try {
     state.recs = await api("/api/recommendations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ regenerate: !!regenerate }) });
     renderRecs();
@@ -577,7 +580,7 @@ function renderRecs() {
   renderTrend(rec); renderRx(rec);
   $("qCard").hidden = !r.questionsForDoctor?.length;
   $("qCard").innerHTML = `<h3>Questions for your doctor</h3><ol class="qlist">${(r.questionsForDoctor || []).map((q) => `<li>${esc(q)}</li>`).join("")}</ol>`;
-  $("genNote").textContent = `Generated by Claude on ${new Date(r.generatedAt).toLocaleString()} from live Epic and CMS data plus your upload. Not medical advice.`;
+  $("genNote").textContent = `Generated by ${llmName()} on ${new Date(r.generatedAt).toLocaleString()} from live ${ehrLabel()} and CMS data plus your upload. Not medical advice.`;
 }
 
 function renderTrend(rec) {
@@ -656,7 +659,8 @@ $("resetBtn").onclick = async () => { await api("/api/reset", { method: "POST" }
   const params = new URLSearchParams(location.search);
   if (params.get("error")) { banner(params.get("error")); history.replaceState(null, "", location.pathname + location.hash); }
   try { await refreshStatus(); } catch (e) { banner("Can't reach the Medivault server. Is it running?"); }
-  if (state.status && !state.status.claudeConfigured) banner("The server has no Anthropic API key, so documents can't be read yet. Add ANTHROPIC_API_KEY to .env.", "info");
+  if (state.status) SRC.epic = ehrLabel();
+  if (state.status && !state.status.llmConfigured) banner("The server has no AI model configured, so documents can't be read yet. Set LLM_API_KEY and LLM_MODEL in .env (see README).", "info");
   const start = location.hash.slice(1);
   go(VIEWS.includes(start) ? start : "upload", false);
 })();

@@ -10,7 +10,7 @@ export function startMocks() {
   const app = express();
   app.use(express.urlencoded({ extended: false }));
   app.use(express.json({ limit: "50mb" }));
-  const seen = { tokenRequests: [], claudeRequests: [], fhirAuth: [] };
+  const seen = { tokenRequests: [], claudeRequests: [], chatRequests: [], fhirAuth: [], conditionQueries: [] };
   const codes = new Map();
   let base = "";
 
@@ -43,11 +43,11 @@ export function startMocks() {
   app.post("/epic/oauth2/token", token("epic", "eP1"));
   app.use("/epic/fhir", requireToken("epic-token"));
   app.get("/epic/fhir/Patient/eP1", (req, res) => res.json({ resourceType: "Patient", id: "eP1", name: [{ use: "official", given: ["Camila"], family: "Lopez" }], birthDate: "1987-09-12", gender: "female" }));
-  app.get("/epic/fhir/Condition", (req, res) => res.json(bundle([
+  app.get("/epic/fhir/Condition", (req, res) => (seen.conditionQueries.push(req.query), res.json(bundle([
     { resourceType: "Condition", id: "c1", clinicalStatus: { coding: [{ code: "active" }] }, code: { coding: [{ system: "http://hl7.org/fhir/sid/icd-10-cm", code: "E11.9", display: "Type 2 diabetes mellitus" }], text: "Type 2 diabetes mellitus" }, onsetDateTime: "2019-06-12" },
     { resourceType: "Condition", id: "c2", clinicalStatus: { coding: [{ code: "resolved" }] }, code: { text: "Acute bronchitis" } },
     { resourceType: "OperationOutcome", issue: [{ severity: "warning" }] },
-  ])));
+  ]))));
   app.get("/epic/fhir/Observation", (req, res) => {
     if (req.query.category === "laboratory") {
       if (req.query.page === "2") return res.json(bundle([
@@ -85,6 +85,27 @@ export function startMocks() {
       pde("p2", "00093101801", "METFORMIN HCL 1000 MG TABLET", "2026-06-01", 30),
       pde("p3", "00071015523", "ATORVASTATIN 40 MG TABLET", "2026-04-10", 90),
     ]));
+  });
+
+  // ---------- OpenAI-compatible Chat Completions (e.g. OpenCode Zen) ----------
+  let recAttempts = 0;
+  app.post("/zen/v1/chat/completions", (req, res) => {
+    seen.chatRequests.push({ body: req.body, headers: req.headers });
+    if (req.headers.authorization !== "Bearer zen-key") return res.status(401).json({ error: { message: "bad key" } });
+    const system = req.body.messages[0].content;
+    let content;
+    if (system.includes("Transcribe only what the document states")) {
+      // Prose + fenced JSON: the server must still parse it.
+      content = "Here you go:\n```json\n" + JSON.stringify({ documentType: "Lab report", patientName: "Camila Lopez", birthDate: "1987-09-12", documentDate: "2026-11-03",
+        results: [{ name: "Hemoglobin A1c", loinc: "4548-4", value: 8.9, valueText: null, unit: "%", flag: "high", referenceRange: "<5.7" }],
+        diagnoses: [], medications: [], summary: "A1c is high." }) + "\n```";
+    } else if (recAttempts++ === 0) {
+      content = JSON.stringify({ headline: "Missing fields" }); // invalid on purpose -> server retries
+    } else {
+      content = JSON.stringify({ headline: "A1c rising.", overview: "Combined.", recommendations: [{ title: "Talk about metformin", priority: "high", why: "w", action: "a",
+        evidence: [{ source: "document", detail: "A1c 8.9%" }] }], questionsForDoctor: [], dataGaps: [] });
+    }
+    res.json({ id: "c1", object: "chat.completion", choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content } }] });
   });
 
   // ---------- Claude API ----------

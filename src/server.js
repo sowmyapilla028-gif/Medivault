@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import session from "express-session";
 import multer from "multer";
-import { config, hasAnthropicCredentials, isConfigured } from "./config.js";
+import { config, isConfigured, llmConfigured, llmLabel } from "./config.js";
 import { buildAuthorizeUrl, exchangeCode, newAuthRequest, refresh, resolveEndpoints } from "./oauth.js";
 import { fetchEpic } from "./sources/epic.js";
 import { fetchCms } from "./sources/cms.js";
@@ -49,7 +49,8 @@ export function createApp({ fetchImpl = fetch } = {}) {
       error: s[id]?.error || null,
     });
     res.json({
-      claudeConfigured: hasAnthropicCredentials(),
+      llmConfigured: llmConfigured(),
+      llmLabel: llmLabel(),
       document: req.session.document ? { name: req.session.documentName, ...req.session.document } : null,
       sources: { epic: src("epic"), cms: src("cms") },
     });
@@ -124,7 +125,7 @@ export function createApp({ fetchImpl = fetch } = {}) {
     if (!token) throw Object.assign(new Error(`${src.label} isn't connected.`), { status: 401 });
     const entry = req.session.sources[src.id];
     try {
-      entry.data = await FETCHERS[src.id]({ base: src.fhirBase, token: token.accessToken, patientId: token.patient, fetchImpl });
+      entry.data = await FETCHERS[src.id]({ base: src.fhirBase, token: token.accessToken, patientId: token.patient, fetchImpl, conditionCategory: src.conditionCategory });
       entry.fetchedAt = new Date().toISOString();
       entry.error = null;
     } catch (err) {
@@ -179,12 +180,14 @@ export function createApp({ fetchImpl = fetch } = {}) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const missing = [];
-  if (!isConfigured("epic")) missing.push("EPIC_CLIENT_ID");
+  if (!isConfigured("epic")) missing.push("EHR_CLIENT_ID");
   if (!isConfigured("cms")) missing.push("CMS_CLIENT_ID / CMS_CLIENT_SECRET");
-  if (!hasAnthropicCredentials()) missing.push("ANTHROPIC_API_KEY");
+  if (!llmConfigured()) missing.push(config.llm.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "LLM_API_KEY and LLM_MODEL");
   createApp().listen(config.port, () => {
     console.log(`Medivault running at ${config.appUrl}`);
-    console.log(`Epic redirect URI: ${config.sources.epic.redirectUri}`);
+    console.log(`EHR: ${config.sources.epic.label} at ${config.sources.epic.fhirBase}`);
+    console.log(`LLM: ${llmLabel()}${config.llm.provider === "openai" ? ` via ${config.llm.baseUrl}` : ""}`);
+    console.log(`EHR redirect URI: ${config.sources.epic.redirectUri}`);
     console.log(`CMS redirect URI:  ${config.sources.cms.redirectUri}`);
     if (missing.length) console.warn(`Not configured yet: ${missing.join(", ")} (see .env.example)`);
   });
